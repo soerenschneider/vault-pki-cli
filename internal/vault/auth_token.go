@@ -11,3 +11,7 @@ func NewTokenAuth(token string) (*TokenAuth, error) {
 func (t *TokenAuth) Authenticate() (string, error) {
 	return t.token, nil
 }
+
+func (t *TokenAuth) Cleanup() error {
+	return nil
+}

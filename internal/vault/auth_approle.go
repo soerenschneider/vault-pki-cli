@@ -52,6 +52,12 @@ func (t *AppRoleAuth) getLoginTuple() (string, string, error) {
 	return roleId, secretId, nil
 }
 
+func (t *AppRoleAuth) Cleanup() error {
+	path := "auth/token/revoke-self"
+	_, err := t.client.Logical().Write(path, map[string]interface{}{})
+	return err
+}
+
 func (t *AppRoleAuth) Authenticate() (string, error) {
 	roleId, secretId, err := t.getLoginTuple()
 	if err != nil {

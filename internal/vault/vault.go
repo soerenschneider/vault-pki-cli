@@ -11,6 +11,7 @@ import (
 
 type AuthMethod interface {
 	Authenticate() (string, error)
+	Cleanup() error
 }
 
 type VaultClient struct {
@@ -110,4 +111,8 @@ func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.IssuedCert, error) {
 		Certificate: []byte(cert),
 		CaChain:     []byte(chain),
 	}, nil
+}
+
+func (c* VaultClient) Cleanup() error {
+	return c.auth.Cleanup()
 }

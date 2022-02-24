@@ -32,9 +32,17 @@ const (
 )
 
 type Pki interface {
+	// Issue issues a new certificate from the PKI
 	Issue(opts conf.IssueArguments) (*IssuedCert, error)
+
+	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
+
+	// Tidy cleans up the PKI cert storage of dangling certificates
 	Tidy() error
+
+	// Cleanup cleans up the used resources of the client is not related to PKI operations
+	Cleanup() error
 }
 
 type IssuedCert struct {
@@ -110,7 +118,16 @@ func (p *PkiCli) Tidy() error {
 	return nil
 }
 
+func (p *PkiCli) cleanup() {
+	log.Info().Msg("Cleaning up the backend...")
+	err := p.signerImpl.Cleanup()
+	if err != nil {
+		log.Error().Msgf("Cleanup of the backend failed: %v", err)
+	}
+}
+
 func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments) (IssueOutcome, error) {
+	defer p.cleanup()
 	if certFile.CanRead() == nil {
 		renew, err := shouldIssueNewCertificate(certFile, p.strategy)
 		if err == nil && !renew {
