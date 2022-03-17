@@ -3,8 +3,8 @@ module github.com/soerenschneider/vault-pki-cli
 go 1.16
 
 require (
-	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
-	github.com/hashicorp/vault/api v1.3.1
+	github.com/hashicorp/go-retryablehttp v0.6.6
+	github.com/hashicorp/vault/api v1.4.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.32.1
 	github.com/rs/zerolog v1.26.1
