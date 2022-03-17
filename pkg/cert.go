@@ -10,7 +10,10 @@ import (
 )
 
 func ParseCertPem(content []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(content)
+	block, err := pem.Decode(content)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode invalid cert data: %v", err)
+	}
 	return x509.ParseCertificate(block.Bytes)
 }
 
