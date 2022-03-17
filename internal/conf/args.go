@@ -17,6 +17,7 @@ const (
 	FLAG_VAULT_MOUNT_APPROLE_DEFAULT = "approle"
 
 	FLAG_CERTIFICATE_FILE = "certificate-file"
+	FLAG_DER_ENCODED      = "der-encoding"
 
 	FLAG_ISSUE_FORCE_NEW_CERTIFICATE                 = "force-new-certificate"
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE         = "lifetime-threshold-percent"

@@ -18,6 +18,7 @@ type Config struct {
 
 	IssueArguments
 	RevokeArguments
+	FetchArguments
 }
 
 func (c *Config) Validate() []error {
