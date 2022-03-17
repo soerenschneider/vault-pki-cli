@@ -19,7 +19,7 @@ import (
 )
 
 func getRevokeCmd() *cobra.Command {
-	var signCmd = &cobra.Command{
+	var revokeCmd = &cobra.Command{
 		Use:   "revoke",
 		Short: "Revoke a x509 cert",
 		Run:   revokeCertEntryPoint,
@@ -31,11 +31,11 @@ func getRevokeCmd() *cobra.Command {
 		},
 	}
 
-	signCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Certificate to read serial from")
+	revokeCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Certificate to read serial from")
 
-	signCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	revokeCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
-	return signCmd
+	return revokeCmd
 }
 
 func revokeCertEntryPoint(ccmd *cobra.Command, args []string) {
@@ -83,12 +83,12 @@ func revokeCert(config conf.Config) error {
 		return fmt.Errorf("could not build auth strategy: %v", err)
 	}
 
-	signingImpl, err := vault.NewVaultSigner(vaultClient, authStrategy, config)
+	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	if err != nil {
 		return fmt.Errorf("could not build rotation client: %v", err)
 	}
 
-	vaultPki, err := pki.NewPki(signingImpl, nil)
+	pkiImpl, err := pki.NewPki(vaultBackend, nil)
 	if err != nil {
 		return fmt.Errorf("could not build pki impl: %v", err)
 	}
@@ -103,5 +103,5 @@ func revokeCert(config conf.Config) error {
 	if err != nil {
 		return fmt.Errorf("could not read certificate serial number: %v", err)
 	}
-	return vaultPki.Revoke(serial)
+	return pkiImpl.Revoke(serial)
 }

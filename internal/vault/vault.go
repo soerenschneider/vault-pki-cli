@@ -21,7 +21,7 @@ type VaultClient struct {
 	mountPath string
 }
 
-func NewVaultSigner(client *api.Client, auth AuthMethod, config conf.Config) (*VaultClient, error) {
+func NewVaultPki(client *api.Client, auth AuthMethod, config conf.Config) (*VaultClient, error) {
 	if client == nil {
 		return nil, errors.New("nil client passed")
 	}

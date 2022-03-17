@@ -22,7 +22,7 @@ import (
 )
 
 func getIssueCmd() *cobra.Command {
-	var signCmd = &cobra.Command{
+	var issueCmd = &cobra.Command{
 		Use:   "issue",
 		Short: "Issue a x509 cert",
 		Run:   issueCertEntryPoint,
@@ -42,21 +42,21 @@ func getIssueCmd() *cobra.Command {
 		},
 	}
 
-	signCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
-	signCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
-	signCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
-	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
-	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
-	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
-	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
-	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
-	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
+	issueCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
+	issueCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
+	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
+	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
 
-	signCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
-	signCmd.MarkFlagRequired(conf.FLAG_ISSUE_PRIVATE_KEY_FILE)
-	signCmd.MarkFlagRequired(conf.FLAG_ISSUE_COMMON_NAME)
+	issueCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	issueCmd.MarkFlagRequired(conf.FLAG_ISSUE_PRIVATE_KEY_FILE)
+	issueCmd.MarkFlagRequired(conf.FLAG_ISSUE_COMMON_NAME)
 
-	return signCmd
+	return issueCmd
 }
 
 func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
@@ -76,7 +76,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 
 	err := issueCert(config)
 	if len(err) > 0 {
-		log.Error().Msgf("signing key not successful, %v", err)
+		log.Error().Msgf("issuing cert not successful, %v", err)
 		internal.MetricSuccess.Set(0)
 	} else {
 		internal.MetricSuccess.Set(1)
@@ -115,7 +115,7 @@ func issueCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	signingImpl, err := vault.NewVaultSigner(vaultClient, authStrategy, config)
+	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build rotation client: %v", err))
 		return
@@ -132,7 +132,7 @@ func issueCert(config conf.Config) (errors []error) {
 		}
 	}
 
-	vaultPki, err := pki.NewPki(signingImpl, strat)
+	pkiImpl, err := pki.NewPki(vaultBackend, strat)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build pki impl: %v", err))
 		return
@@ -150,14 +150,14 @@ func issueCert(config conf.Config) (errors []error) {
 		}
 	}
 
-	outcome, err := vaultPki.Issue(certPod, privateKeyPod, config.IssueArguments)
+	outcome, err := pkiImpl.Issue(certPod, privateKeyPod, config.IssueArguments)
 	if err != nil {
 		log.Error().Msgf("could not issue new certificate: %v", err)
 		errors = append(errors, err)
 	}
 
 	if outcome == pki.Issued && err == nil && len(serial) > 0 {
-		err := vaultPki.Revoke(serial)
+		err := pkiImpl.Revoke(serial)
 		if err != nil {
 			log.Error().Msgf("Revoking serial %s failed: %v", serial, err)
 		}
@@ -166,7 +166,7 @@ func issueCert(config conf.Config) (errors []error) {
 	rand.Seed(time.Now().UnixNano())
 	if rand.Intn(100) >= 90 {
 		log.Info().Msgf("Tidying up certificate storage")
-		err := vaultPki.Tidy()
+		err := pkiImpl.Tidy()
 		if err != nil {
 			log.Error().Msgf("Tidying up certificate storage failed: %v", err)
 		}

@@ -52,8 +52,8 @@ type IssuedCert struct {
 }
 
 type PkiCli struct {
-	signerImpl Pki
-	strategy   issue_strategies.IssueStrategy
+	pkiImpl  Pki
+	strategy issue_strategies.IssueStrategy
 }
 
 func NewPki(pki Pki, strategy issue_strategies.IssueStrategy) (*PkiCli, error) {
@@ -65,8 +65,8 @@ func NewPki(pki Pki, strategy issue_strategies.IssueStrategy) (*PkiCli, error) {
 	}
 
 	return &PkiCli{
-		signerImpl: pki,
-		strategy:   strategy,
+		pkiImpl:  pki,
+		strategy: strategy,
 	}, nil
 }
 
@@ -99,7 +99,7 @@ func shouldIssueNewCertificate(certFile KeyPod, strategy issue_strategies.IssueS
 
 func (p *PkiCli) Revoke(serial string) error {
 	log.Info().Msgf("Attempting to revoke certificate %s", serial)
-	err := p.signerImpl.Revoke(serial)
+	err := p.pkiImpl.Revoke(serial)
 	if err != nil {
 		return fmt.Errorf("could not revoke certificate: %v", err)
 	}
@@ -109,7 +109,7 @@ func (p *PkiCli) Revoke(serial string) error {
 }
 
 func (p *PkiCli) Tidy() error {
-	err := p.signerImpl.Tidy()
+	err := p.pkiImpl.Tidy()
 	if err != nil {
 		return fmt.Errorf("could not tidy certificate storage: %v", err)
 	}
@@ -120,7 +120,7 @@ func (p *PkiCli) Tidy() error {
 
 func (p *PkiCli) cleanup() {
 	log.Info().Msg("Cleaning up the backend...")
-	err := p.signerImpl.Cleanup()
+	err := p.pkiImpl.Cleanup()
 	if err != nil {
 		log.Error().Msgf("Cleanup of the backend failed: %v", err)
 	}
@@ -140,7 +140,7 @@ func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments
 	}
 
 	log.Info().Msg("Issuing new certificate")
-	cert, err := p.signerImpl.Issue(opts)
+	cert, err := p.pkiImpl.Issue(opts)
 	if err != nil {
 		return Error, fmt.Errorf("error issuing certificate %v", err)
 	}
