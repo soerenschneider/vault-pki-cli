@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.1](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.1.0...v1.1.1) (2022-03-17)
+
+
+### Bug Fixes
+
+* error on invalid cert data ([1b0fba6](https://www.github.com/soerenschneider/vault-pki-cli/commit/1b0fba63a5735fb91a97cc88a336f662ca74a8c5))
+
 ## [1.1.0](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.0.0...v1.1.0) (2022-03-17)
 
 
