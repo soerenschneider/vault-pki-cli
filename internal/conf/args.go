@@ -16,14 +16,14 @@ const (
 	FLAG_VAULT_MOUNT_APPROLE         = "vault-mount-approle"
 	FLAG_VAULT_MOUNT_APPROLE_DEFAULT = "approle"
 
-	FLAG_CERTIFICATE_FILE = "certificate-file"
-	FLAG_DER_ENCODED      = "der-encoding"
+	FLAG_OUTPUT_FILE = "output-file"
+	FLAG_DER_ENCODED = "der-encoding"
 
 	FLAG_ISSUE_FORCE_NEW_CERTIFICATE                 = "force-new-certificate"
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE         = "lifetime-threshold-percent"
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT = 33.
 	FLAG_ISSUE_PRIVATE_KEY_FILE                      = "private-key-file"
-	FLAG_ISSUE_CA_CHAIN_FILE                         = "ca-chain-file"
+	FLAG_CERTIFICATE_FILE                            = "certificate-file"
 	FLAG_ISSUE_TTL                                   = "ttl"
 	FLAG_ISSUE_IP_SANS                               = "ip-sans"
 	FLAG_ISSUE_COMMON_NAME                           = "common-name"

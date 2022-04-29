@@ -39,7 +39,7 @@ func NewConfigFromViper() conf.Config {
 	config.RevokeArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
 
 	// fetch cmd args
-	config.FetchArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
+	config.FetchArguments.OutputFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_OUTPUT_FILE))
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
 
 	config.PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
@@ -93,13 +93,13 @@ func getExpandedFile(filename string) string {
 	return filename
 }
 
-func handleCertData(certData []byte, config conf.Config) {
-	if len(config.FetchArguments.CertificateFile) == 0 {
+func handleFetchedData(certData []byte, config conf.Config) {
+	if len(config.FetchArguments.OutputFile) == 0 {
 		fmt.Println(string(certData))
 		os.Exit(0)
 	}
 
-	err := ioutil.WriteFile(config.FetchArguments.CertificateFile, certData, 0644)
+	err := ioutil.WriteFile(config.FetchArguments.OutputFile, certData, 0644)
 	if err != nil {
 		log.Error().Msgf("Error writing cert: %v", err)
 		os.Exit(1)

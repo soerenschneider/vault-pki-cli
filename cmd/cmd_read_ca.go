@@ -17,14 +17,14 @@ func readCaCmd() *cobra.Command {
 		Run:   readCaEntryPoint,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// See https://github.com/spf13/viper/issues/233#issuecomment-386791444
-			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
+			viper.BindPFlag(conf.FLAG_OUTPUT_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_OUTPUT_FILE))
 			viper.BindPFlag(conf.FLAG_DER_ENCODED, cmd.PersistentFlags().Lookup(conf.FLAG_DER_ENCODED))
 
 			return initializeConfig(cmd)
 		},
 	}
 
-	getCaCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Write certificate to file")
+	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "Write ca certificate to this output file")
 	getCaCmd.PersistentFlags().BoolP(conf.FLAG_DER_ENCODED, "d", false, "Use DER encoding")
 	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
@@ -55,10 +55,11 @@ func readCaEntryPoint(ccmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	config.FetchArguments.PrintConfig()
 	certData, err := vault.FetchCert(config.VaultAddress, config.VaultMountPki, config.DerEncoded)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	handleCertData(certData, config)
+	handleFetchedData(certData, config)
 }

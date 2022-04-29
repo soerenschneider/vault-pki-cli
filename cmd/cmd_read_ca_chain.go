@@ -17,12 +17,12 @@ func readCaChainCmd() *cobra.Command {
 		Run:   fetchCaChainEntryPoint,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// See https://github.com/spf13/viper/issues/233#issuecomment-386791444
-			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
+			viper.BindPFlag(conf.FLAG_OUTPUT_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_OUTPUT_FILE))
 			return initializeConfig(cmd)
 		},
 	}
 
-	getCaCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Write certificate to file")
+	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "Write ca certificate chain to this file")
 	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
 	return getCaCmd
@@ -52,10 +52,11 @@ func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	config.FetchArguments.PrintConfig()
 	certData, err := vault.FetchCertChain(config.VaultAddress, config.VaultMountPki)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	handleCertData(certData, config)
+	handleFetchedData(certData, config)
 }
