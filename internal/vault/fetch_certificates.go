@@ -20,6 +20,14 @@ func FetchCertChain(vaultAddress, pkiMount string) ([]byte, error) {
 	return fetchResource(endpoint)
 }
 
+func FetchCrl(vaultAddress, pkiMount string, binary bool) ([]byte, error) {
+	endpoint := fmt.Sprintf("%s/v1/%s/crl", vaultAddress, pkiMount)
+	if !binary {
+		endpoint += "/pem"
+	}
+	return fetchResource(endpoint)
+}
+
 func fetchResource(url string) ([]byte, error) {
 	client := retryablehttp.NewClient()
 	resp, err := client.Get(url)
@@ -34,4 +42,3 @@ func fetchResource(url string) ([]byte, error) {
 
 	return read, nil
 }
-

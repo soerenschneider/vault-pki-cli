@@ -31,6 +31,7 @@ func main() {
 	root.AddCommand(getIssueCmd())
 	root.AddCommand(readCaCmd())
 	root.AddCommand(readCaChainCmd())
+	root.AddCommand(readCrlCmd())
 	root.AddCommand(versionCmd)
 
 	root.PersistentFlags().BoolP("debug", "v", false, "Enable debug logging")
