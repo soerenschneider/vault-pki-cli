@@ -113,6 +113,6 @@ func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.IssuedCert, error) {
 	}, nil
 }
 
-func (c* VaultClient) Cleanup() error {
+func (c *VaultClient) Cleanup() error {
 	return c.auth.Cleanup()
 }
