@@ -6,6 +6,7 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
@@ -19,7 +20,10 @@ const (
 )
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	log.Logger = log.Output(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.RFC3339,
+	})
 
 	root := &cobra.Command{Use: "vault-pki-cli", Short: fmt.Sprintf("Interact with Vault PKI - %s", internal.BuildVersion)}
 
