@@ -29,5 +29,5 @@ const (
 	FLAG_ISSUE_COMMON_NAME                           = "common-name"
 	FLAG_ISSUE_ALT_NAMES                             = "alt-names"
 	FLAG_ISSUE_METRICS_FILE                          = "metrics-file"
-	FLAG_ISSUE_METRICS_FILE_DEFAULT                  = "/var/lib/node_exporter/ssh_key_sign.prom"
+	FLAG_ISSUE_METRICS_FILE_DEFAULT                  = "/var/lib/node_exporter/vault_pki_issuer.prom"
 )
