@@ -3,6 +3,7 @@ package pkg
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -10,9 +11,9 @@ import (
 )
 
 func ParseCertPem(content []byte) (*x509.Certificate, error) {
-	block, err := pem.Decode(content)
-	if err != nil {
-		return nil, fmt.Errorf("could not decode invalid cert data: %v", err)
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, errors.New("could not decode invalid cert data")
 	}
 	return x509.ParseCertificate(block.Bytes)
 }
