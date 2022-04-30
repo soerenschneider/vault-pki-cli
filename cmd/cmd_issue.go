@@ -30,6 +30,9 @@ func getIssueCmd() *cobra.Command {
 			// See https://github.com/spf13/viper/issues/233#issuecomment-386791444
 			viper.BindPFlag(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE))
 			viper.BindPFlag(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
+			viper.BindPFlag(conf.FLAG_FILE_OWNER, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_OWNER))
+			viper.BindPFlag(conf.FLAG_FILE_GROUP, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_GROUP))
+
 			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_COMMON_NAME, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_COMMON_NAME))
@@ -45,6 +48,8 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
 	issueCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_OWNER, "", conf.FLAG_FILE_OWNER_DEFAULT, "Owner of the written files")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_GROUP, "", conf.FLAG_FILE_GROUP_DEFAULT, "Group of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
@@ -138,8 +143,16 @@ func issueCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	privateKeyPod := &pods.FsPod{FilePath: config.IssueArguments.PrivateKeyFile}
-	certPod := &pods.FsPod{FilePath: config.IssueArguments.CertificateFile}
+	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.FileOwner, config.FileGroup)
+	if err != nil {
+		errors = append(errors, fmt.Errorf("could not init private-key-file: %v", err))
+		return
+	}
+	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.FileOwner, config.FileGroup)
+	if err != nil {
+		errors = append(errors, fmt.Errorf("could not init cert-file: %v", err))
+		return
+	}
 
 	var serial string
 	if certPod.CanRead() == nil {

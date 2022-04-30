@@ -1,15 +1,51 @@
 package pods
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 
 	"golang.org/x/sys/unix"
 )
 
 type FsPod struct {
-	FilePath string
+	FilePath  string
+	FileOwner int
+	FileGroup int
+}
+
+func NewFsPod(path, owner, group string) (*FsPod, error) {
+	if len(path) == 0 {
+		return nil, errors.New("empty path provided")
+	}
+
+	localUser, err := user.Lookup(owner)
+	if err != nil {
+		return nil, fmt.Errorf("could not lookup user '%s': %v", owner, err)
+	}
+	uid, err := strconv.Atoi(localUser.Uid)
+	if err != nil {
+		return nil, fmt.Errorf("was expecting a numerical uid, got '%s'", localUser.Uid)
+	}
+
+	localGroup, err := user.LookupGroup(group)
+	if err != nil {
+		return nil, fmt.Errorf("could not lookup group '%s': %v", group, err)
+	}
+	gid, err := strconv.Atoi(localGroup.Gid)
+	if err != nil {
+		return nil, fmt.Errorf("was expecting a numerical gid, got '%s'", localGroup.Gid)
+	}
+
+	return &FsPod{
+		FilePath:  path,
+		FileOwner: uid,
+		FileGroup: gid,
+	}, nil
 }
 
 func (fs *FsPod) Read() ([]byte, error) {
@@ -22,7 +58,17 @@ func (fs *FsPod) CanRead() error {
 }
 
 func (fs *FsPod) Write(signedData string) error {
-	return ioutil.WriteFile(fs.FilePath, []byte(signedData), 0640)
+	err := ioutil.WriteFile(fs.FilePath, []byte(signedData), 0640)
+	if err != nil {
+		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
+	}
+
+	err = os.Chown(fs.FilePath, fs.FileOwner, fs.FileGroup)
+	if err != nil {
+		return fmt.Errorf("could not chown file '%s': %v", fs.FilePath, err)
+	}
+
+	return nil
 }
 
 func (fs *FsPod) CanWrite() error {

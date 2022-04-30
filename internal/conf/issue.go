@@ -12,9 +12,12 @@ type IssueArguments struct {
 	AltNames            []string
 	ForceNewCertificate bool
 
-	CertificateFile                        string
-	PrivateKeyFile                         string
-	ChainFile                              string
+	CertificateFile string
+	PrivateKeyFile  string
+	ChainFile       string
+	FileOwner       string
+	FileGroup       string
+
 	CertificateLifetimeThresholdPercentage float64
 
 	MetricsFile string
@@ -45,6 +48,8 @@ func (c *IssueArguments) PrintConfig() {
 	log.Info().Msg("------------- Printing issue cmd values -------------")
 	log.Info().Msgf("%s=%s", FLAG_CERTIFICATE_FILE, c.CertificateFile)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, c.PrivateKeyFile)
+	log.Info().Msgf("%s=%s", FLAG_FILE_OWNER, c.FileOwner)
+	log.Info().Msgf("%s=%s", FLAG_FILE_GROUP, c.FileGroup)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_TTL, c.Ttl)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_COMMON_NAME, c.CommonName)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_METRICS_FILE, c.MetricsFile)

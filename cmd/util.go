@@ -42,6 +42,9 @@ func NewConfigFromViper() conf.Config {
 	config.FetchArguments.OutputFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_OUTPUT_FILE))
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
 
+	config.FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
+	config.FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
+
 	config.PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
 
 	config.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
