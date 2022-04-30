@@ -76,6 +76,7 @@ func updateCertificateMetrics(cert *x509.Certificate) {
 	}
 
 	secondsTotal := cert.NotAfter.Sub(cert.NotBefore).Seconds()
+	internal.MetricCertLifetimeTotal.Set(secondsTotal)
 	secondsUntilExpiration := time.Until(cert.NotAfter).Seconds()
 
 	percentage := math.Max(0, secondsUntilExpiration*100./secondsTotal)
