@@ -80,7 +80,7 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) {
 
 	err := signCert(config)
 	if len(err) > 0 {
-		log.Error().Msgf("signing cert not successful, %v", err)
+		log.Error().Msgf("signing CSR not successful, %v", err)
 		internal.MetricSuccess.Set(0)
 	} else {
 		internal.MetricSuccess.Set(1)
@@ -131,7 +131,7 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	csrPod, err := pods.NewFsPod(config.PrivateKeyFile, config.SignArguments.FileOwner, config.SignArguments.FileGroup)
+	csrPod, err := pods.NewFsPod(config.CsrFile, config.SignArguments.FileOwner, config.SignArguments.FileGroup)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not init private-key-file: %v", err))
 		return
@@ -144,7 +144,6 @@ func signCert(config conf.Config) (errors []error) {
 
 	err = pkiImpl.Sign(certPod, csrPod, config.SignArguments)
 	if err != nil {
-		log.Error().Msgf("could not sign CSR: %v", err)
 		errors = append(errors, err)
 	}
 
