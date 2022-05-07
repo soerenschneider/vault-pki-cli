@@ -29,6 +29,7 @@ func main() {
 
 	root.AddCommand(getRevokeCmd())
 	root.AddCommand(getIssueCmd())
+	root.AddCommand(getSignCmd())
 	root.AddCommand(readCaCmd())
 	root.AddCommand(readCaChainCmd())
 	root.AddCommand(readCrlCmd())

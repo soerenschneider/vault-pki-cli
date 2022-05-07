@@ -87,8 +87,8 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 		internal.MetricSuccess.Set(1)
 	}
 	internal.MetricRunTimestamp.SetToCurrentTime()
-	if len(config.MetricsFile) > 0 {
-		internal.WriteMetrics(config.MetricsFile)
+	if len(config.IssueArguments.MetricsFile) > 0 {
+		internal.WriteMetrics(config.IssueArguments.MetricsFile)
 	}
 
 	if len(err) == 0 {
@@ -127,10 +127,10 @@ func issueCert(config conf.Config) (errors []error) {
 	}
 
 	var strat issue_strategies.IssueStrategy
-	if config.ForceNewCertificate {
+	if config.IssueArguments.ForceNewCertificate {
 		strat = &issue_strategies.StaticRenewal{Decision: true}
 	} else {
-		strat, err = issue_strategies.NewPercentage(config.CertificateLifetimeThresholdPercentage)
+		strat, err = issue_strategies.NewPercentage(config.IssueArguments.CertificateLifetimeThresholdPercentage)
 		if err != nil {
 			errors = append(errors, fmt.Errorf("could not build strategy: %v", err))
 			return
@@ -143,12 +143,12 @@ func issueCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.FileOwner, config.FileGroup)
+	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not init private-key-file: %v", err))
 		return
 	}
-	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.FileOwner, config.FileGroup)
+	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not init cert-file: %v", err))
 		return

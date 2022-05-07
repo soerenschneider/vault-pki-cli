@@ -26,6 +26,7 @@ const (
 	FLAG_DER_ENCODED = "der-encoding"
 
 	FLAG_CERTIFICATE_FILE = "certificate-file"
+	FLAG_CSR_FILE         = "csr-file"
 	FLAG_FILE_OWNER       = "owner"
 	FLAG_FILE_GROUP       = "group"
 )

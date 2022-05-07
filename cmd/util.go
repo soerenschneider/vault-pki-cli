@@ -37,25 +37,32 @@ func NewConfigFromViper() conf.Config {
 	config.VaultPkiRole = viper.GetViper().GetString(conf.FLAG_VAULT_PKI_BACKEND_ROLE)
 	config.IssueArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
 	config.RevokeArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
+	config.SignArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
 
 	// fetch cmd args
 	config.FetchArguments.OutputFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_OUTPUT_FILE))
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
 
-	config.FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
-	config.FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
+	config.IssueArguments.FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
+	config.IssueArguments.FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
+	config.SignArguments.FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
+	config.SignArguments.FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
 
 	config.PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
 
 	config.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
 	config.CertificateLifetimeThresholdPercentage = viper.GetViper().GetFloat64(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE)
-	config.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
+	config.IssueArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
+	config.SignArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
 
-	// issue cmd args
-	config.CommonName = viper.GetViper().GetString(conf.FLAG_ISSUE_COMMON_NAME)
-	config.Ttl = viper.GetViper().GetString(conf.FLAG_ISSUE_TTL)
-	config.IpSans = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_IP_SANS)
-	config.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
+	config.SignArguments.CommonName = viper.GetViper().GetString(conf.FLAG_ISSUE_COMMON_NAME)
+	config.IssueArguments.CommonName = viper.GetViper().GetString(conf.FLAG_ISSUE_COMMON_NAME)
+	config.SignArguments.Ttl = viper.GetViper().GetString(conf.FLAG_ISSUE_TTL)
+	config.IssueArguments.Ttl = viper.GetViper().GetString(conf.FLAG_ISSUE_TTL)
+	config.SignArguments.IpSans = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_IP_SANS)
+	config.IssueArguments.IpSans = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_IP_SANS)
+	config.SignArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
+	config.IssueArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
 
 	return config
 }

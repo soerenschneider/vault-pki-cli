@@ -35,6 +35,9 @@ type Pki interface {
 	// Issue issues a new certificate from the PKI
 	Issue(opts conf.IssueArguments) (*IssuedCert, error)
 
+	// Sign signs a CSR
+	Sign(csr KeyPod, opts conf.SignArguments) (*Signature, error)
+
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
 
@@ -49,6 +52,12 @@ type IssuedCert struct {
 	PrivateKey  []byte
 	Certificate []byte
 	CaChain     []byte
+}
+
+type Signature struct {
+	Certificate []byte
+	CaChain     []byte
+	Serial      string
 }
 
 type PkiCli struct {
@@ -168,6 +177,34 @@ func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments
 	}
 
 	return Issued, nil
+}
+
+func (p *PkiCli) Sign(certFile, csrFile KeyPod, opts conf.SignArguments) error {
+	defer p.cleanup()
+
+	log.Info().Msg("Issuing new certificate")
+	resp, err := p.pkiImpl.Sign(csrFile, opts)
+	if err != nil {
+		return fmt.Errorf("error issuing certificate %v", err)
+	}
+	log.Info().Msg("New certificate successfully issued")
+
+	// Update metrics for the just received cert
+	x509Cert, err := pkg.ParseCertPem(resp.Certificate)
+	if err != nil {
+		internal.MetricCertParseErrors.Set(1)
+		log.Error().Msgf("Could not parse certificate data: %v", err)
+	} else {
+		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
+		updateCertificateMetrics(x509Cert)
+	}
+
+	err = certFile.Write(string(resp.Certificate))
+	if err != nil {
+		return fmt.Errorf("could not write certificate file to backend: %v", err)
+	}
+
+	return nil
 }
 
 func parseCert(certFile KeyPod) (*x509.Certificate, error) {
