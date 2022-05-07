@@ -64,6 +64,8 @@ func NewConfigFromViper() conf.Config {
 	config.SignArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
 	config.IssueArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
 
+	config.SignArguments.CsrFile = viper.GetViper().GetString(conf.FLAG_CSR_FILE)
+
 	return config
 }
 
