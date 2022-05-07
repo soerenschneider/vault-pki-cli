@@ -1,6 +1,6 @@
 module github.com/soerenschneider/vault-pki-cli
 
-go 1.16
+go 1.17
 
 require (
 	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
