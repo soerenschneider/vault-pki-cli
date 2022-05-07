@@ -16,6 +16,7 @@ type Config struct {
 	VaultMountApprole string
 	VaultPkiRole      string
 
+	SignArguments
 	IssueArguments
 	RevokeArguments
 	FetchArguments
