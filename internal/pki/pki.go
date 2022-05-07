@@ -185,9 +185,9 @@ func (p *PkiCli) Sign(certFile, csrFile KeyPod, opts conf.SignArguments) error {
 	log.Info().Msg("Issuing new certificate")
 	resp, err := p.pkiImpl.Sign(csrFile, opts)
 	if err != nil {
-		return fmt.Errorf("error issuing certificate %v", err)
+		return fmt.Errorf("error signing CSR: %v", err)
 	}
-	log.Info().Msg("New certificate successfully issued")
+	log.Info().Msgf("CSR has been successfully signed using serial %s", resp.Serial)
 
 	// Update metrics for the just received cert
 	x509Cert, err := pkg.ParseCertPem(resp.Certificate)

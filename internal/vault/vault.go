@@ -143,8 +143,8 @@ func (c *VaultClient) Sign(csrFile pki.KeyPod, opts conf.SignArguments) (*pki.Si
 	}
 
 	cert := fmt.Sprintf("%s", secret.Data["certificate"])
-	chain := fmt.Sprintf("%s", secret.Data["ca_chain"])
-	serial := fmt.Sprintf("%s", secret.Data["serial"])
+	chain := fmt.Sprintf("%s", secret.Data["issuing_ca"])
+	serial := fmt.Sprintf("%s", secret.Data["serial_number"])
 
 	return &pki.Signature{
 		Certificate: []byte(cert),
