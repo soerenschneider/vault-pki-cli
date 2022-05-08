@@ -1,3 +1,9 @@
 /.idea
 /builds
 /vault-pki-cli
+
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
