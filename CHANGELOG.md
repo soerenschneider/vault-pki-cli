@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.3.1...v1.4.0) (2022-05-07)
+
+
+### Miscellaneous Chores
+
+* release 1.4.0 ([9c3a391](https://www.github.com/soerenschneider/vault-pki-cli/commit/9c3a3919943c4cb71e991f6736c738806b74a7d3))
+
 ### [1.3.1](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.3.0...v1.3.1) (2022-04-30)
 
 
