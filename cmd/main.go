@@ -72,10 +72,8 @@ func initializeConfig(cmd *cobra.Command) error {
 
 	v.SetConfigName(defaultConfigFilename)
 
-	v.AddConfigPath(".")
 	v.AddConfigPath("$HOME/.config/vault-pki-cli")
 	v.AddConfigPath("/etc/vault-pki-cli/")
-	v.AddConfigPath("/etc/")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
