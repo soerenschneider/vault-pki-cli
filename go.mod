@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.6
 	github.com/hashicorp/vault/api v1.3.1
 	github.com/prometheus/client_golang v1.12.1
-	github.com/prometheus/common v0.32.1
+	github.com/prometheus/common v0.34.0
 	github.com/rs/zerolog v1.26.1
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/viper v1.10.1
@@ -63,7 +63,7 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
-	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d // indirect
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
