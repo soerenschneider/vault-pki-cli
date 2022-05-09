@@ -41,6 +41,15 @@ func (c *IssueArguments) Validate() []error {
 		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
 	}
 
+	ownerDefined := len(c.FileOwner) > 0
+	groupDefined := len(c.FileGroup) > 0
+	if !ownerDefined && groupDefined {
+		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_GROUP, FLAG_FILE_OWNER))
+	}
+	if ownerDefined && !groupDefined {
+		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_OWNER, FLAG_FILE_GROUP))
+	}
+
 	return errs
 }
 
@@ -48,8 +57,12 @@ func (c *IssueArguments) PrintConfig() {
 	log.Info().Msg("------------- Printing issue cmd values -------------")
 	log.Info().Msgf("%s=%s", FLAG_CERTIFICATE_FILE, c.CertificateFile)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, c.PrivateKeyFile)
-	log.Info().Msgf("%s=%s", FLAG_FILE_OWNER, c.FileOwner)
-	log.Info().Msgf("%s=%s", FLAG_FILE_GROUP, c.FileGroup)
+	if len(c.FileOwner) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_FILE_OWNER, c.FileOwner)
+	}
+	if len(c.FileGroup) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_FILE_GROUP, c.FileGroup)
+	}
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_TTL, c.Ttl)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_COMMON_NAME, c.CommonName)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_METRICS_FILE, c.MetricsFile)

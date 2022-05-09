@@ -14,8 +14,8 @@ import (
 
 type FsPod struct {
 	FilePath  string
-	FileOwner int
-	FileGroup int
+	FileOwner *int
+	FileGroup *int
 }
 
 func NewFsPod(path, owner, group string) (*FsPod, error) {
@@ -23,22 +23,25 @@ func NewFsPod(path, owner, group string) (*FsPod, error) {
 		return nil, errors.New("empty path provided")
 	}
 
-	localUser, err := user.Lookup(owner)
-	if err != nil {
-		return nil, fmt.Errorf("could not lookup user '%s': %v", owner, err)
-	}
-	uid, err := strconv.Atoi(localUser.Uid)
-	if err != nil {
-		return nil, fmt.Errorf("was expecting a numerical uid, got '%s'", localUser.Uid)
-	}
+	var uid, gid *int
+	if len(owner) > 0 && len(group) > 0 {
+		localUser, err := user.Lookup(owner)
+		if err != nil {
+			return nil, fmt.Errorf("could not lookup user '%s': %v", owner, err)
+		}
+		*uid, err = strconv.Atoi(localUser.Uid)
+		if err != nil {
+			return nil, fmt.Errorf("was expecting a numerical uid, got '%s'", localUser.Uid)
+		}
 
-	localGroup, err := user.LookupGroup(group)
-	if err != nil {
-		return nil, fmt.Errorf("could not lookup group '%s': %v", group, err)
-	}
-	gid, err := strconv.Atoi(localGroup.Gid)
-	if err != nil {
-		return nil, fmt.Errorf("was expecting a numerical gid, got '%s'", localGroup.Gid)
+		localGroup, err := user.LookupGroup(group)
+		if err != nil {
+			return nil, fmt.Errorf("could not lookup group '%s': %v", group, err)
+		}
+		*gid, err = strconv.Atoi(localGroup.Gid)
+		if err != nil {
+			return nil, fmt.Errorf("was expecting a numerical gid, got '%s'", localGroup.Gid)
+		}
 	}
 
 	return &FsPod{
@@ -63,9 +66,11 @@ func (fs *FsPod) Write(signedData string) error {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
 	}
 
-	err = os.Chown(fs.FilePath, fs.FileOwner, fs.FileGroup)
-	if err != nil {
-		return fmt.Errorf("could not chown file '%s': %v", fs.FilePath, err)
+	if fs.FileOwner != nil && fs.FileGroup != nil {
+		err = os.Chown(fs.FilePath, *fs.FileOwner, *fs.FileGroup)
+		if err != nil {
+			return fmt.Errorf("could not chown file '%s': %v", fs.FilePath, err)
+		}
 	}
 
 	return nil
