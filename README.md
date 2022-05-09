@@ -15,7 +15,7 @@
 ## Issuing a x509 certificate
 
 ```shell
-➜  vault-pki-cli git:(main) ✗ ./vault-pki-cli -t test -a http://localhost:8200 issue --common-name my.example.com -p /tmp/my.example.com.key -c /tmp/my.example.com.crt
+➜  ./vault-pki-cli -t test -a http://localhost:8200 issue --common-name my.example.com -p /tmp/my.example.com.key -c /tmp/my.example.com.crt
 2022-05-09T10:19:00+02:00 INF Version v1.3.0 (b509559e872e9ff75e413dd6041e882efdf8e4c6)
 2022-05-09T10:19:00+02:00 INF ------------- Printing common config values -------------
 2022-05-09T10:19:00+02:00 INF vault-address=http://localhost:8200
@@ -26,8 +26,6 @@
 2022-05-09T10:19:00+02:00 INF ------------- Printing issue cmd values -------------
 2022-05-09T10:19:00+02:00 INF certificate-file=/tmp/my.example.com.crt
 2022-05-09T10:19:00+02:00 INF private-key-file=/tmp/my.example.com.key
-2022-05-09T10:19:00+02:00 INF owner=soeren
-2022-05-09T10:19:00+02:00 INF group=staff
 2022-05-09T10:19:00+02:00 INF ttl=48h
 2022-05-09T10:19:00+02:00 INF common-name=my.example.com
 2022-05-09T10:19:00+02:00 INF metrics-file=/tmp/vault-pki-cli.prom
@@ -50,7 +48,7 @@
 ```shell
 ➜  openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/my.example.com.key -out /tmp/my.example.csr
 ...
-➜  vault-pki-cli git:(main) ✗ ./vault-pki-cli -t test -a http://localhost:8200 sign --common-name my.example.com --csr-file /tmp/my.example.com.csr -c /tmp/my.example.com.crt
+➜  ./vault-pki-cli -t test -a http://localhost:8200 sign --common-name my.example.com --csr-file /tmp/my.example.com.csr -c /tmp/my.example.com.crt
 2022-05-09T10:25:10+02:00 INF Version v1.3.0 (b509559e872e9ff75e413dd6041e882efdf8e4c6)
 2022-05-09T10:25:10+02:00 INF ------------- Printing common config values -------------
 2022-05-09T10:25:10+02:00 INF vault-address=http://localhost:8200
@@ -61,8 +59,6 @@
 2022-05-09T10:25:10+02:00 INF ------------- Printing sign cmd values -------------
 2022-05-09T10:25:10+02:00 INF csr-file=/tmp/my.example.com.csr
 2022-05-09T10:25:10+02:00 INF certificate-file=/tmp/my.example.com.crt
-2022-05-09T10:25:10+02:00 INF owner=soeren
-2022-05-09T10:25:10+02:00 INF group=staff
 2022-05-09T10:25:10+02:00 INF ttl=48h
 2022-05-09T10:25:10+02:00 INF common-name=my.example.com
 2022-05-09T10:25:10+02:00 INF metrics-file=/tmp/vault-pki-cli.prom
@@ -129,7 +125,7 @@ The folder `assets/terraform/` contains Terraform code that spins up a local PKI
 ```shell
 export VAULT_TOKEN=test
 export VAULT_ADDR=http://localhost:8200
-docker run --cap-add=IPC_LOCK -p 8200:8200 -e "VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN" -e "VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200" vault &
+docker run --cap-add=IPC_LOCK -d -p 8200:8200 -e "VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN" -e "VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200" vault
 terraform -chdir=assets/terraform apply -auto-approve
 make build
 ./vault-pki-cli -a $VAULT_ADDR -t $VAULT_TOKEN issue -t test -c /tmp/test.crt -p /tmp/test.key --common-name bla.example.com
