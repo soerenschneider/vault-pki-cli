@@ -8,7 +8,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.34.0
 	github.com/rs/zerolog v1.26.1
-	github.com/spf13/cobra v1.3.0
+	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.11.0
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
 )
