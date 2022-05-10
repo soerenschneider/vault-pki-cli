@@ -10,6 +10,10 @@
 - ✓ Fetching the PKIs CA chain
 - ✓ Revoking your certificate
 
+## Roadmap
+
+- [ ] Support for YubiKey PIV
+
 # Subcommands
 
 ## Issuing a x509 certificate
