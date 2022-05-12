@@ -3,6 +3,7 @@ module github.com/soerenschneider/vault-pki-cli
 go 1.17
 
 require (
+	github.com/go-piv/piv-go v1.9.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/hashicorp/vault/api v1.5.0
 	github.com/prometheus/client_golang v1.12.1
