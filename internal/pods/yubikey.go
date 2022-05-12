@@ -94,6 +94,7 @@ func (pod *YubikeyPod) Write(signedData string) error {
 	return pod.yubikey.SetCertificate(*managementKey, pod.slot, cert)
 }
 
-func (y *YubikeyPod) CanWrite() error {
-	return nil
+func (pod *YubikeyPod) CanWrite() error {
+	_, err := pod.getManagementKey()
+	return err
 }
