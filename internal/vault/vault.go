@@ -73,7 +73,7 @@ func buildIssueArgs(opts conf.IssueArguments) map[string]interface{} {
 	return data
 }
 
-func (c *VaultClient) sign(csrFile pki.KeyPod, opts conf.SignArguments) (*api.Secret, error) {
+func (c *VaultClient) sign(csr string, opts conf.SignArguments) (*api.Secret, error) {
 	token, err := c.auth.Authenticate()
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
@@ -82,7 +82,7 @@ func (c *VaultClient) sign(csrFile pki.KeyPod, opts conf.SignArguments) (*api.Se
 	c.client.SetToken(token)
 
 	path := fmt.Sprintf("%s/sign/%s", c.mountPath, c.roleName)
-	data, err := buildSignArgs(csrFile, opts)
+	data, err := buildSignArgs(csr, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not build request, reading csr file failed: %v", err)
 	}
@@ -95,14 +95,9 @@ func (c *VaultClient) sign(csrFile pki.KeyPod, opts conf.SignArguments) (*api.Se
 	return secret, nil
 }
 
-func buildSignArgs(csrFile pki.KeyPod, opts conf.SignArguments) (map[string]interface{}, error) {
-	csr, err := csrFile.Read()
-	if err != nil {
-		return nil, err
-	}
-
+func buildSignArgs(csr string, opts conf.SignArguments) (map[string]interface{}, error) {
 	data := map[string]interface{}{
-		"csr":         string(csr),
+		"csr":         csr,
 		"common_name": opts.CommonName,
 		"ttl":         opts.Ttl,
 		"format":      "pem",
@@ -136,8 +131,8 @@ func (c *VaultClient) Tidy() error {
 	return nil
 }
 
-func (c *VaultClient) Sign(csrFile pki.KeyPod, opts conf.SignArguments) (*pki.Signature, error) {
-	secret, err := c.sign(csrFile, opts)
+func (c *VaultClient) Sign(csr string, opts conf.SignArguments) (*pki.Signature, error) {
+	secret, err := c.sign(csr, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +148,7 @@ func (c *VaultClient) Sign(csrFile pki.KeyPod, opts conf.SignArguments) (*pki.Si
 	}, nil
 }
 
-func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.IssuedCert, error) {
+func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.CertData, error) {
 	secret, err := c.issue(opts)
 	if err != nil {
 		return nil, err
@@ -161,9 +156,9 @@ func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.IssuedCert, error) {
 
 	privateKey := fmt.Sprintf("%s", secret.Data["private_key"])
 	cert := fmt.Sprintf("%s", secret.Data["certificate"])
-	chain := fmt.Sprintf("%s", secret.Data["ca_chain"])
+	chain := fmt.Sprintf("%s", secret.Data["issuing_ca"])
 
-	return &pki.IssuedCert{
+	return &pki.CertData{
 		PrivateKey:  []byte(privateKey),
 		Certificate: []byte(cert),
 		CaChain:     []byte(chain),

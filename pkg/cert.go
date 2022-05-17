@@ -10,12 +10,32 @@ import (
 	"strings"
 )
 
-func ParseCertPem(content []byte) (*x509.Certificate, error) {
-	block, _ := pem.Decode(content)
-	if block == nil {
-		return nil, errors.New("could not decode invalid cert data")
+func ParseCertPem(data []byte) (*x509.Certificate, error) {
+	if data == nil {
+		return nil, errors.New("emtpy data provided")
 	}
-	return x509.ParseCertificate(block.Bytes)
+
+	var der *pem.Block
+	rest := data
+	for {
+		der, rest = pem.Decode(rest)
+		if der == nil {
+			return nil, errors.New("invalid pem provided")
+		}
+
+		if strings.Contains(der.Type, "PRIVATE KEY") {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(der.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		if !cert.IsCA {
+			return cert, nil
+		}
+	}
 }
 
 func GetFormattedSerial(content []byte) (string, error) {

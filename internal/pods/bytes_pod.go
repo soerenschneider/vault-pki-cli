@@ -22,8 +22,8 @@ func (b *BufferPod) CanRead() error {
 	return fmt.Errorf("empty buffer")
 }
 
-func (b *BufferPod) Write(signedData string) error {
-	b.Data = []byte(signedData)
+func (b *BufferPod) Write(data []byte) error {
+	b.Data = data
 	return nil
 }
 

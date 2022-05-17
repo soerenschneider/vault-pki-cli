@@ -2,6 +2,7 @@ package pods
 
 import (
 	"errors"
+	"fmt"
 	"github.com/go-piv/piv-go/piv"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"strings"
@@ -14,7 +15,12 @@ type YubikeyPod struct {
 }
 
 func NewYubikeyPod(slot uint32, pin string) (*YubikeyPod, error) {
-	keySlot, err := getSlot(slot)
+	keySlot, err := TranslateSlot(slot)
+	if err != nil {
+		return nil, err
+	}
+
+	err = verifyPin(pin)
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +60,10 @@ func (pod *YubikeyPod) getManagementKey() (*[24]byte, error) {
 	return m.ManagementKey, nil
 }
 
-func getSlot(slot uint32) (*piv.Slot, error) {
+func TranslateSlot(slot uint32) (*piv.Slot, error) {
 	switch slot {
 	case 0x9a:
-		return &piv.SlotCardAuthentication, nil
+		return &piv.SlotAuthentication, nil
 	case 0x9c:
 		return &piv.SlotSignature, nil
 	case 0x9e:
@@ -67,6 +73,14 @@ func getSlot(slot uint32) (*piv.Slot, error) {
 	default:
 		return nil, errors.New("invalid slot")
 	}
+}
+
+func verifyPin(pin string) error {
+	if len(pin) < 6 {
+		return fmt.Errorf("supplied pin shorter than 6 characters: %d", len(pin))
+	}
+
+	return nil
 }
 
 func (pod *YubikeyPod) Read() ([]byte, error) {
@@ -82,11 +96,12 @@ func (pod *YubikeyPod) CanRead() error {
 	return err
 }
 
-func (pod *YubikeyPod) Write(signedData string) error {
-	cert, err := pkg.ParseCertPem([]byte(signedData))
+func (pod *YubikeyPod) Write(data []byte) error {
+	cert, err := pkg.ParseCertPem(data)
 	if err != nil {
 		return err
 	}
+
 	managementKey, err := pod.getManagementKey()
 	if err != nil {
 		return err

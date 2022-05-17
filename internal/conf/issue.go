@@ -3,6 +3,7 @@ package conf
 import (
 	"fmt"
 	log "github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/internal/pods"
 )
 
 type IssueArguments struct {
@@ -20,18 +21,22 @@ type IssueArguments struct {
 
 	CertificateLifetimeThresholdPercentage float64
 
+	YubikeyPin  string
+	YubikeySlot uint32
+
 	MetricsFile string
+}
+
+func (c *IssueArguments) UsesYubikey() bool {
+	if len(c.CertificateFile) == 0 {
+		return true
+	}
+
+	return false
 }
 
 func (c *IssueArguments) Validate() []error {
 	errs := make([]error, 0)
-	if len(c.CertificateFile) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_CERTIFICATE_FILE))
-	}
-
-	if len(c.PrivateKeyFile) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_PRIVATE_KEY_FILE))
-	}
 
 	if len(c.CommonName) == 0 {
 		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
@@ -50,16 +55,49 @@ func (c *IssueArguments) Validate() []error {
 		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_OWNER, FLAG_FILE_GROUP))
 	}
 
+	emptyYubikeySlot := c.YubikeySlot == FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
+	emptyCertificateFile := len(c.CertificateFile) == 0
+	emptyPrivateKeyFile := len(c.PrivateKeyFile) == 0
+	if (emptyPrivateKeyFile || emptyCertificateFile) && emptyYubikeySlot {
+		errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
+	}
+
+	if !emptyCertificateFile && !emptyPrivateKeyFile && !emptyYubikeySlot {
+		errs = append(errs, fmt.Errorf("can't provide yubi key slot and both '%s' and '%s'", FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
+	}
+
+	if !emptyYubikeySlot {
+		_, err := pods.TranslateSlot(c.YubikeySlot)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
+		}
+	}
+
 	return errs
 }
 
 func (c *IssueArguments) PrintConfig() {
 	log.Info().Msg("------------- Printing issue cmd values -------------")
-	log.Info().Msgf("%s=%s", FLAG_CERTIFICATE_FILE, c.CertificateFile)
-	log.Info().Msgf("%s=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, c.PrivateKeyFile)
+	if c.YubikeySlot != FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT {
+		log.Info().Msgf("%s=%x", FLAG_ISSUE_YUBIKEY_SLOT, c.YubikeySlot)
+	}
+
+	if len(c.YubikeyPin) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_ISSUE_YUBIKEY_PIN, "*** (Redacted)")
+	}
+
+	if len(c.CertificateFile) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_CERTIFICATE_FILE, c.CertificateFile)
+	}
+
+	if len(c.PrivateKeyFile) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, c.PrivateKeyFile)
+	}
+
 	if len(c.FileOwner) > 0 {
 		log.Info().Msgf("%s=%s", FLAG_FILE_OWNER, c.FileOwner)
 	}
+
 	if len(c.FileGroup) > 0 {
 		log.Info().Msgf("%s=%s", FLAG_FILE_GROUP, c.FileGroup)
 	}

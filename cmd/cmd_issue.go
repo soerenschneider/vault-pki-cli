@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/soerenschneider/vault-pki-cli/internal/backends"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -35,6 +38,8 @@ func getIssueCmd() *cobra.Command {
 
 			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
+			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_SLOT, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_SLOT))
+			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_PIN, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_PIN))
 			viper.BindPFlag(conf.FLAG_ISSUE_COMMON_NAME, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_COMMON_NAME))
 			viper.BindPFlag(conf.FLAG_ISSUE_TTL, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_TTL))
 			viper.BindPFlag(conf.FLAG_ISSUE_METRICS_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_METRICS_FILE))
@@ -48,6 +53,8 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
 	issueCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
+	issueCmd.PersistentFlags().Uint32(conf.FLAG_ISSUE_YUBIKEY_SLOT, math.MaxUint32, "Yubikey slot to write x509 data to")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_YUBIKEY_PIN, "", "", "PIN to access to Yubikey PIV")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_OWNER, "", "", "Owner of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_GROUP, "", "", "Group of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
@@ -57,8 +64,6 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
 
-	issueCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
-	issueCmd.MarkFlagRequired(conf.FLAG_ISSUE_PRIVATE_KEY_FILE)
 	issueCmd.MarkFlagRequired(conf.FLAG_ISSUE_COMMON_NAME)
 
 	return issueCmd
@@ -143,27 +148,19 @@ func issueCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+	format, err := buildOutput(config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not init private-key-file: %v", err))
-		return
-	}
-	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
-	if err != nil {
-		errors = append(errors, fmt.Errorf("could not init cert-file: %v", err))
+		errors = append(errors, fmt.Errorf("can't build certificate output: %v", err))
 		return
 	}
 
 	var serial string
-	if certPod.CanRead() == nil {
-		content, _ := certPod.Read()
-		serial, err = pkg.GetFormattedSerial(content)
-		if err != nil {
-			log.Error().Msgf("Could not read certificate serial number: %v", err)
-		}
+	x509cert, err := format.Read()
+	if err == nil {
+		serial = pkg.FormatSerial(x509cert.SerialNumber)
 	}
 
-	outcome, err := pkiImpl.Issue(certPod, privateKeyPod, config.IssueArguments)
+	outcome, err := pkiImpl.Issue(format, config.IssueArguments)
 	if err != nil {
 		log.Error().Msgf("could not issue new certificate: %v", err)
 		errors = append(errors, err)
@@ -186,4 +183,51 @@ func issueCert(config conf.Config) (errors []error) {
 	}
 
 	return
+}
+
+func buildOutput(config conf.Config) (pki.CertBackend, error) {
+	if config.UsesYubikey() {
+		log.Info().Msg("Building yubikey backend to write cert data to")
+		return buildYubikeyBackend(config)
+	} else {
+		log.Info().Msg("Building pem backend to write cert data to")
+		return buildPemBackend(config)
+	}
+
+	return nil, errors.New("can't decide which backend to build")
+}
+
+func buildPemBackend(config conf.Config) (pki.CertBackend, error) {
+	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+	if err != nil {
+		return nil, fmt.Errorf("could not init private-key-file: %v", err)
+	}
+
+	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+	if err != nil {
+		return nil, fmt.Errorf("could not init cert-file: %v", err)
+	}
+	return backends.NewPemBackend(certPod, privateKeyPod, nil)
+}
+
+func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {
+	pin := config.YubikeyPin
+	if len(pin) == 0 {
+		var err error
+		pin, err = QueryYubikeyPin()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	yubikey, err := pods.NewYubikeyPod(config.YubikeySlot, pin)
+	if err != nil {
+		return nil, fmt.Errorf("can't init yubikey: %v", err)
+	}
+
+	yubikeyBackend, err := backends.NewYubikeyBackend(yubikey)
+	if err != nil {
+		return nil, fmt.Errorf("can't build yubikey backend: %v", err)
+	}
+	return yubikeyBackend, nil
 }
