@@ -17,6 +17,9 @@ clean:
 build: version-info
 	CGO_ENABLED=0 go build -ldflags="-X '$(MODULE)/internal.BuildVersion=${VERSION}' -X '$(MODULE)/internal.CommitHash=${COMMIT_HASH}'" -o $(BINARY_NAME) ./cmd
 
+build-yubikey: version-info
+	go build -tags yubikey -ldflags="-X '$(MODULE)/internal.BuildVersion=${VERSION}' -X '$(MODULE)/internal.CommitHash=${COMMIT_HASH}'" -o $(BINARY_NAME)-yubikey ./cmd
+
 release: clean version-info cross-build
 	cd $(BUILD_DIR) && sha256sum * > $(CHECKSUM_FILE) && cd -
 

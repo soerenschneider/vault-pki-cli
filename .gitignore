@@ -1,6 +1,8 @@
 /.idea
 /builds
 /vault-pki-cli
+/vault-pki-cli-yubikey
+/coverage.*
 
 **/.terraform/*
 
