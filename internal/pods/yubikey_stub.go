@@ -30,5 +30,5 @@ func (pod *YubikeyPod) CanWrite() error {
 }
 
 func ValidateSlot(slot uint32) error {
-	return errors.New("this build has no yubikey support!")
+	return nil
 }
