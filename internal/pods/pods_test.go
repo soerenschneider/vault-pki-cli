@@ -19,7 +19,7 @@ func TestFsPod_Read(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:     "read unexistent file",
+			name:     "read non-existent file",
 			filePath: "../../assets/tests/hello-im-not-here.txt",
 			want:     nil,
 			wantErr:  true,

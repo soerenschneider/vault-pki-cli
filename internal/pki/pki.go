@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -13,15 +14,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
 )
-
-// KeyPod is a simple wrapper around a key (which is just a byte stream itself). This way, we decouple
-// the implementation (file-based, memory, network, ..) and make it easily swap- and testable.
-type KeyPod interface {
-	Read() ([]byte, error)
-	CanRead() error
-	Write(string) error
-	CanWrite() error
-}
 
 type IssueOutcome int
 
@@ -33,25 +25,57 @@ const (
 
 type Pki interface {
 	// Issue issues a new certificate from the PKI
-	Issue(opts conf.IssueArguments) (*IssuedCert, error)
+	Issue(opts conf.IssueArguments) (*CertData, error)
 
 	// Sign signs a CSR
-	Sign(csr KeyPod, opts conf.SignArguments) (*Signature, error)
+	Sign(csr string, opts conf.SignArguments) (*Signature, error)
 
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
 
-	// Tidy cleans up the PKI cert storage of dangling certificates
+	// Tidy cleans up the PKI blob storage of dangling certificates
 	Tidy() error
 
 	// Cleanup cleans up the used resources of the client is not related to PKI operations
 	Cleanup() error
 }
 
-type IssuedCert struct {
+type CertData struct {
 	PrivateKey  []byte
 	Certificate []byte
 	CaChain     []byte
+	Csr         []byte
+}
+
+func (certData *CertData) AsContainer() string {
+	var buffer strings.Builder
+
+	if certData.HasCaChain() {
+		buffer.Write(certData.CaChain)
+		buffer.Write([]byte("\n"))
+	}
+
+	buffer.Write(certData.Certificate)
+	buffer.Write([]byte("\n"))
+
+	if certData.HasPrivateKey() {
+		buffer.Write(certData.PrivateKey)
+		buffer.Write([]byte("\n"))
+	}
+
+	return buffer.String()
+}
+
+func (cert *CertData) HasPrivateKey() bool {
+	return len(cert.PrivateKey) > 0
+}
+
+func (cert *CertData) HasCertificate() bool {
+	return len(cert.Certificate) > 0
+}
+
+func (cert *CertData) HasCaChain() bool {
+	return len(cert.CaChain) > 0
 }
 
 type Signature struct {
@@ -94,17 +118,14 @@ func updateCertificateMetrics(cert *x509.Certificate) {
 	internal.MetricCertLifetimePercent.Set(percentage)
 }
 
-func shouldIssueNewCertificate(certFile KeyPod, strategy issue_strategies.IssueStrategy) (bool, error) {
-	log.Info().Msg("A certificate already exists, trying to parse it")
-	cert, err := parseCert(certFile)
-	if err != nil {
-		internal.MetricCertParseErrors.Set(1)
-		return true, fmt.Errorf("could not parse existing certificate data: %v", err)
+func shouldIssueNewCertificate(x509Cert *x509.Certificate, strategy issue_strategies.IssueStrategy) (bool, error) {
+	if x509Cert == nil {
+		return true, errors.New("empty cert provided")
 	}
 
-	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(cert.SerialNumber))
-	updateCertificateMetrics(cert)
-	return strategy.Renew(cert)
+	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(x509Cert.SerialNumber))
+	updateCertificateMetrics(x509Cert)
+	return strategy.Renew(x509Cert)
 }
 
 func (p *PkiCli) Revoke(serial string) error {
@@ -124,7 +145,7 @@ func (p *PkiCli) Tidy() error {
 		return fmt.Errorf("could not tidy certificate storage: %v", err)
 	}
 
-	log.Info().Msgf("Tidy cert storage scheduled")
+	log.Info().Msgf("Tidy blob storage scheduled")
 	return nil
 }
 
@@ -136,16 +157,17 @@ func (p *PkiCli) cleanup() {
 	}
 }
 
-func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments) (IssueOutcome, error) {
+func (p *PkiCli) Issue(format CertBackend, opts conf.IssueArguments) (IssueOutcome, error) {
 	defer p.cleanup()
-	if certFile.CanRead() == nil {
-		renew, err := shouldIssueNewCertificate(certFile, p.strategy)
+	certData, err := format.Read()
+	if err == nil && certData != nil {
+		renew, err := shouldIssueNewCertificate(certData, p.strategy)
 		if err == nil && !renew {
-			log.Info().Msg("Not renewing certifcate: certificate does not need renewal, yet")
+			log.Info().Msg("Not renewing certificate: certificate does not need renewal, yet")
 			return NotNeeded, nil
 		}
 		if err != nil {
-			log.Error().Msgf("Got error while deciding whether to renew certifcate, proceeding to renew: %v", err)
+			log.Error().Msgf("Got error while deciding whether to renew certificate, proceeding to renew: %v", err)
 		}
 	}
 
@@ -156,7 +178,7 @@ func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments
 	}
 	log.Info().Msg("New certificate successfully issued")
 
-	// Update metrics for the just received cert
+	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
 		internal.MetricCertParseErrors.Set(1)
@@ -166,30 +188,27 @@ func (p *PkiCli) Issue(certFile, privateKeyFile KeyPod, opts conf.IssueArguments
 		updateCertificateMetrics(x509Cert)
 	}
 
-	err = certFile.Write(string(cert.Certificate))
+	err = format.Write(cert)
 	if err != nil {
-		return Error, fmt.Errorf("could not write certificate file to backend: %v", err)
-	}
-
-	err = privateKeyFile.Write(string(cert.PrivateKey))
-	if err != nil {
-		return Error, fmt.Errorf("could not write private key to backend: %v", err)
+		return Error, fmt.Errorf("could not write bundle to backend: %v", err)
 	}
 
 	return Issued, nil
 }
 
-func (p *PkiCli) Sign(certFile, csrFile KeyPod, opts conf.SignArguments) error {
+func (p *PkiCli) Sign(csrPod, certPod KeyPod, opts conf.SignArguments) error {
 	defer p.cleanup()
 
-	log.Info().Msg("Issuing new certificate")
-	resp, err := p.pkiImpl.Sign(csrFile, opts)
+	csr, err := csrPod.Read()
+
+	log.Info().Msg("Trying to sign certificate")
+	resp, err := p.pkiImpl.Sign(string(csr), opts)
 	if err != nil {
 		return fmt.Errorf("error signing CSR: %v", err)
 	}
 	log.Info().Msgf("CSR has been successfully signed using serial %s", resp.Serial)
 
-	// Update metrics for the just received cert
+	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(resp.Certificate)
 	if err != nil {
 		internal.MetricCertParseErrors.Set(1)
@@ -199,11 +218,10 @@ func (p *PkiCli) Sign(certFile, csrFile KeyPod, opts conf.SignArguments) error {
 		updateCertificateMetrics(x509Cert)
 	}
 
-	err = certFile.Write(string(resp.Certificate))
+	err = certPod.Write(resp.Certificate)
 	if err != nil {
 		return fmt.Errorf("could not write certificate file to backend: %v", err)
 	}
-
 	return nil
 }
 

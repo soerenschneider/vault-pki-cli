@@ -29,19 +29,21 @@ func NewFsPod(path, owner, group string) (*FsPod, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not lookup user '%s': %v", owner, err)
 		}
-		*uid, err = strconv.Atoi(localUser.Uid)
+		conv, err := strconv.Atoi(localUser.Uid)
 		if err != nil {
 			return nil, fmt.Errorf("was expecting a numerical uid, got '%s'", localUser.Uid)
 		}
+		uid = &conv
 
 		localGroup, err := user.LookupGroup(group)
 		if err != nil {
 			return nil, fmt.Errorf("could not lookup group '%s': %v", group, err)
 		}
-		*gid, err = strconv.Atoi(localGroup.Gid)
+		conv, err = strconv.Atoi(localGroup.Gid)
 		if err != nil {
 			return nil, fmt.Errorf("was expecting a numerical gid, got '%s'", localGroup.Gid)
 		}
+		gid = &conv
 	}
 
 	return &FsPod{
@@ -60,8 +62,8 @@ func (fs *FsPod) CanRead() error {
 	return err
 }
 
-func (fs *FsPod) Write(signedData string) error {
-	err := ioutil.WriteFile(fs.FilePath, []byte(signedData), 0640)
+func (fs *FsPod) Write(signedData []byte) error {
+	err := ioutil.WriteFile(fs.FilePath, signedData, 0640)
 	if err != nil {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
 	}

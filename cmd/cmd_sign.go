@@ -137,7 +137,7 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	err = pkiImpl.Sign(certPod, csrPod, config.SignArguments)
+	err = pkiImpl.Sign(csrPod, certPod, config.SignArguments)
 	if err != nil {
 		errors = append(errors, err)
 	}

@@ -16,6 +16,9 @@ const (
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE = "lifetime-threshold-percent"
 	FLAG_ISSUE_PRIVATE_KEY_FILE              = "private-key-file"
 
+	FLAG_ISSUE_YUBIKEY_SLOT = "yubi-slot"
+	FLAG_ISSUE_YUBIKEY_PIN  = "yubi-pin"
+
 	FLAG_ISSUE_TTL          = "ttl"
 	FLAG_ISSUE_IP_SANS      = "ip-sans"
 	FLAG_ISSUE_COMMON_NAME  = "common-name"

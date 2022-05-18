@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ilius/go-askpass"
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"os"
@@ -64,6 +65,9 @@ func NewConfigFromViper() conf.Config {
 	config.SignArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
 	config.IssueArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
 
+	config.IssueArguments.YubikeyPin = viper.GetViper().GetString(conf.FLAG_ISSUE_YUBIKEY_PIN)
+	config.IssueArguments.YubikeySlot = viper.GetViper().GetUint32(conf.FLAG_ISSUE_YUBIKEY_SLOT)
+
 	config.SignArguments.CsrFile = viper.GetViper().GetString(conf.FLAG_CSR_FILE)
 
 	return config
@@ -116,4 +120,13 @@ func handleFetchedData(certData []byte, config conf.Config) {
 		log.Error().Msgf("Error writing cert: %v", err)
 		os.Exit(1)
 	}
+}
+
+func QueryYubikeyPin() (string, error) {
+	pin, err := askpass.Askpass("Please enter Yubikey PIN (won't echo)", false, "")
+	if err != nil {
+		return "", fmt.Errorf("can not read pin for yubikey: %v", err)
+	}
+
+	return pin, nil
 }
