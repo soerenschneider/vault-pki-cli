@@ -9,10 +9,7 @@
 - ✓ Fetching the PKIs CRL
 - ✓ Fetching the PKIs CA chain
 - ✓ Revoking your certificate
-
-## Roadmap
-
-- [ ] Support for YubiKey PIV
+- ✓ Support for YubiKey PIV
 
 # Subcommands
 
@@ -95,19 +92,21 @@ Configuration seeks for config files named `config.$ext` in the following direct
 | vault-mount-approle  | string | no        | approle          |                       | Vault path where the AppRole auth method is mounted                                  |
 
 ### Issue Subcommand
-| Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                            |
-|----------------------------|--------|-----------|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| certificate-file           | string | yes       |                                              | The file to write the certificate to                                                                                                   |
-| private-key-file           | string | yes       |                                              | The file to write the private key to                                                                                                   |
-| common-name                | string | yes       |                                              | The common-name (CN) for the x509 cert                                                                                                 |
-| ip-sans                    | string | no        | []                                           | Specifies the requested IP Subject Alternative Names, in a comma-delimited list                                                        |
-| alt-names                  | string | no        | []                                           | Specifies the requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses.              |
-| force-new-certificate      | bool   | no        | false                                        | Flag to force issuing a new certificate, thus ignoring the `lifetime-threshold-percent` option                                         |
-| lifetime-threshold-percent | float  | no        | 33.                                          | Threshold of certificate lifetime before requesting a new one                                                                          |
-| ttl                        | string | no        | 48h                                          | Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used  |
-| owner                      | string | no        |                                              | The owner of the written files                                                                                                         |
-| group                      | string | no        |                                              | The group owner of the written files                                                                                                   |
-| metrics-file               | string | no        | /var/lib/node_exporter/vault_pki_issuer.prom | File to write the prometheus metrics to                                                                                                |
+| Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                                  |
+|----------------------------|--------|-----------|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| certificate-file           | string | no*       |                                              | The file to write the certificate to. Can not be used when also specifying Yubikey Slot.                                                     |
+| private-key-file           | string | no*       |                                              | The file to write the private key to. Can not be used when also specifying Yubikey Slot.                                                     |
+| common-name                | string | yes       |                                              | The common-name (CN) for the x509 cert                                                                                                       |
+| yubi-slot                  | uint   | no*       |                                              | Defines which [YubiKey slot](https://docs.yubico.com/yesdk/users-manual/application-piv/slots.html) to use. Uses hex format, example: 0x9a   |
+| yubi-pin                   | string | no        |                                              | Pin to unlock the YubiKey slot. If no PIN is provided, the tool asks you interactively for it.                                               |
+| ip-sans                    | string | no        | []                                           | Specifies the requested IP Subject Alternative Names, in a comma-delimited list                                                              |
+| alt-names                  | string | no        | []                                           | Specifies the requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses.                    |
+| force-new-certificate      | bool   | no        | false                                        | Flag to force issuing a new certificate, thus ignoring the `lifetime-threshold-percent` option                                               |
+| lifetime-threshold-percent | float  | no        | 33.                                          | Threshold of certificate lifetime before requesting a new one                                                                                |
+| ttl                        | string | no        | 48h                                          | Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used        |
+| owner                      | string | no        |                                              | The owner of the written files                                                                                                               |
+| group                      | string | no        |                                              | The group owner of the written files                                                                                                         |
+| metrics-file               | string | no        | /var/lib/node_exporter/vault_pki_issuer.prom | File to write the prometheus metrics to                                                                                                      |
 
 ### Sign Subcommand
 | Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                            |
@@ -122,6 +121,11 @@ Configuration seeks for config files named `config.$ext` in the following direct
 | group                      | string | no        |                                              | The group owner of the written files                                                                                                   |
 | metrics-file               | string | no        | /var/lib/node_exporter/vault_pki_issuer.prom | File to write the prometheus metrics to                                                                                                |
 
+# YubiKey PIV Support
+YubiKey PIV support is based on the excellent [piv-go](https://github.com/go-piv/piv-go) library which relies on platform-dependent libraries. As it needs to be compiled using `CGO_ENABLED=1` only binaries without YubiKey support are found in the releases section.
+
+## Build with YubiKey Support
+The Makefile target `build-yubikey` leverages the go build tag `yubikey` and builds a binary with support for YubiKeys.
 
 # Testing with Vault
 The folder `assets/terraform/` contains Terraform code that spins up a local PKI to use with vault-pki-cli.
