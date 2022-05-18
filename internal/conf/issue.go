@@ -67,7 +67,7 @@ func (c *IssueArguments) Validate() []error {
 	}
 
 	if !emptyYubikeySlot {
-		_, err := pods.TranslateSlot(c.YubikeySlot)
+		err := pods.ValidateSlot(c.YubikeySlot)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
 		}

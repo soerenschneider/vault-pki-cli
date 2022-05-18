@@ -1,3 +1,6 @@
+//go:build yubikey
+// +build yubikey
+
 package pods
 
 import (
@@ -36,11 +39,11 @@ func Test_getSlot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := TranslateSlot(tt.slot)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TranslateSlot() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("translateSlot() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TranslateSlot() got = %v, want %v", got, tt.want)
+				t.Errorf("translateSlot() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

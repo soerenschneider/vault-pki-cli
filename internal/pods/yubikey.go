@@ -1,3 +1,5 @@
+//go:build yubikey
+
 package pods
 
 import (
@@ -15,7 +17,7 @@ type YubikeyPod struct {
 }
 
 func NewYubikeyPod(slot uint32, pin string) (*YubikeyPod, error) {
-	keySlot, err := TranslateSlot(slot)
+	keySlot, err := translateSlot(slot)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +62,12 @@ func (pod *YubikeyPod) getManagementKey() (*[24]byte, error) {
 	return m.ManagementKey, nil
 }
 
-func TranslateSlot(slot uint32) (*piv.Slot, error) {
+func ValidateSlot(slot uint32) error {
+	_, err := translateSlot(slot)
+	return err
+}
+
+func translateSlot(slot uint32) (*piv.Slot, error) {
 	switch slot {
 	case 0x9a:
 		return &piv.SlotAuthentication, nil
