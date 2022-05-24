@@ -37,6 +37,7 @@ func getIssueCmd() *cobra.Command {
 			viper.BindPFlag(conf.FLAG_FILE_GROUP, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_GROUP))
 
 			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
+			viper.BindPFlag(conf.FLAG_CA_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CA_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_SLOT, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_SLOT))
 			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_PIN, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_PIN))
@@ -58,6 +59,7 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_OWNER, "", "", "Owner of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_GROUP, "", "", "Group of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
+	issueCmd.PersistentFlags().String(conf.FLAG_CA_FILE, "", "File to write the CA certificate to")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
@@ -207,7 +209,17 @@ func buildPemBackend(config conf.Config) (pki.CertBackend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not init cert-file: %v", err)
 	}
-	return backends.NewPemBackend(certPod, privateKeyPod, nil)
+
+	var caPod pki.KeyPod
+	if len(config.IssueArguments.CaFile) > 0 {
+		var err error
+		caPod, err = pods.NewFsPod(config.IssueArguments.CaFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+		if err != nil {
+			return nil, fmt.Errorf("could not init ca-file: %v", err)
+		}
+	}
+
+	return backends.NewPemBackend(certPod, privateKeyPod, caPod)
 }
 
 func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {

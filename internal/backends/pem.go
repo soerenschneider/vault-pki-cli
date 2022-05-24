@@ -5,9 +5,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"log"
 )
 
 type PemBackend struct {
+	ca         pki.KeyPod
 	cert       pki.KeyPod
 	privateKey pki.KeyPod
 }
@@ -21,22 +23,19 @@ func NewPemBackend(cert, privateKey, chain pki.KeyPod) (*PemBackend, error) {
 		return nil, errors.New("empty private key pod provided")
 	}
 
-	return &PemBackend{cert: cert, privateKey: privateKey}, nil
+	return &PemBackend{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
 func (f *PemBackend) Write(certData *pki.CertData) error {
-	if certData.HasCaChain() {
-		data := certData.CaChain
-		data = append(data, "\n"...)
-		data = append(data, certData.Certificate...)
-		data = append(data, "\n"...)
-		if err := f.cert.Write(data); err != nil {
+	if certData.HasCaChain() && f.ca != nil {
+		log.Println("--------------------------")
+		if err := f.ca.Write(append(certData.CaChain, "\n"...)); err != nil {
 			return err
 		}
-	} else {
-		if err := f.cert.Write(append(certData.Certificate, "\n"...)); err != nil {
-			return err
-		}
+	}
+
+	if err := f.cert.Write(append(certData.Certificate, "\n"...)); err != nil {
+		return err
 	}
 
 	if certData.HasPrivateKey() {

@@ -15,7 +15,7 @@ type IssueArguments struct {
 
 	CertificateFile string
 	PrivateKeyFile  string
-	ChainFile       string
+	CaFile          string
 	FileOwner       string
 	FileGroup       string
 
@@ -84,6 +84,10 @@ func (c *IssueArguments) PrintConfig() {
 
 	if len(c.YubikeyPin) > 0 {
 		log.Info().Msgf("%s=%s", FLAG_ISSUE_YUBIKEY_PIN, "*** (Redacted)")
+	}
+
+	if len(c.CaFile) > 0 {
+		log.Info().Msgf("%s=%s", FLAG_CA_FILE, c.CaFile)
 	}
 
 	if len(c.CertificateFile) > 0 {
