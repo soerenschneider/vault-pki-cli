@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.5.1](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.5.0...v1.5.1) (2022-05-24)
+
+
+### Bug Fixes
+
+* respect 'ca-file' option ([3d4aea2](https://www.github.com/soerenschneider/vault-pki-cli/commit/3d4aea27c777622a6a1dafb22b2128d017fce52b))
+
 ## [1.5.0](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.4.0...v1.5.0) (2022-05-18)
 
 
