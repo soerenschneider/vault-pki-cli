@@ -92,21 +92,22 @@ Configuration seeks for config files named `config.$ext` in the following direct
 | vault-mount-approle  | string | no        | approle          |                       | Vault path where the AppRole auth method is mounted                                  |
 
 ### Issue Subcommand
-| Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                                  |
-|----------------------------|--------|-----------|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| certificate-file           | string | no*       |                                              | The file to write the certificate to. Can not be used when also specifying Yubikey Slot.                                                     |
-| private-key-file           | string | no*       |                                              | The file to write the private key to. Can not be used when also specifying Yubikey Slot.                                                     |
-| common-name                | string | yes       |                                              | The common-name (CN) for the x509 cert                                                                                                       |
-| yubi-slot                  | uint   | no*       |                                              | Defines which [YubiKey slot](https://docs.yubico.com/yesdk/users-manual/application-piv/slots.html) to use. Uses hex format, example: 0x9a   |
-| yubi-pin                   | string | no        |                                              | Pin to unlock the YubiKey slot. If no PIN is provided, the tool asks you interactively for it.                                               |
-| ip-sans                    | string | no        | []                                           | Specifies the requested IP Subject Alternative Names, in a comma-delimited list                                                              |
-| alt-names                  | string | no        | []                                           | Specifies the requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses.                    |
-| force-new-certificate      | bool   | no        | false                                        | Flag to force issuing a new certificate, thus ignoring the `lifetime-threshold-percent` option                                               |
-| lifetime-threshold-percent | float  | no        | 33.                                          | Threshold of certificate lifetime before requesting a new one                                                                                |
-| ttl                        | string | no        | 48h                                          | Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used        |
-| owner                      | string | no        |                                              | The owner of the written files                                                                                                               |
-| group                      | string | no        |                                              | The group owner of the written files                                                                                                         |
-| metrics-file               | string | no        | /var/lib/node_exporter/vault_pki_issuer.prom | File to write the prometheus metrics to                                                                                                      |
+| Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                                |
+|----------------------------|--------|-----------|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| certificate-file           | string | no*       |                                              | File to write the certificate to. Can not be used when also specifying Yubikey Slot.                                                       |
+| ca-file                    | string | no        |                                              | Fle to write the ca certificate to. Can not be used when also specifying Yubikey Slot.                                                     |
+| private-key-file           | string | no*       |                                              | File to write the private key to. Can not be used when also specifying Yubikey Slot.                                                       |
+| common-name                | string | yes       |                                              | The common-name (CN) for the x509 cert                                                                                                     |
+| yubi-slot                  | uint   | no*       |                                              | Defines which [YubiKey slot](https://docs.yubico.com/yesdk/users-manual/application-piv/slots.html) to use. Uses hex format, example: 0x9a |
+| yubi-pin                   | string | no        |                                              | Pin to unlock the YubiKey slot. If no PIN is provided, the tool asks you interactively for it.                                             |
+| ip-sans                    | string | no        | []                                           | Specifies the requested IP Subject Alternative Names, in a comma-delimited list                                                            |
+| alt-names                  | string | no        | []                                           | Specifies the requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses.                  |
+| force-new-certificate      | bool   | no        | false                                        | Flag to force issuing a new certificate, thus ignoring the `lifetime-threshold-percent` option                                             |
+| lifetime-threshold-percent | float  | no        | 33.                                          | Threshold of certificate lifetime before requesting a new one                                                                              |
+| ttl                        | string | no        | 48h                                          | Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used      |
+| owner                      | string | no        |                                              | The owner of the written files                                                                                                             |
+| group                      | string | no        |                                              | The group owner of the written files                                                                                                       |
+| metrics-file               | string | no        | /var/lib/node_exporter/vault_pki_issuer.prom | File to write the prometheus metrics to                                                                                                    |
 
 ### Sign Subcommand
 | Name                       | Type   | Mandatory | Default                                      | Description                                                                                                                            |
@@ -136,5 +137,5 @@ export VAULT_ADDR=http://localhost:8200
 docker run --cap-add=IPC_LOCK -d -p 8200:8200 -e "VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN" -e "VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200" vault
 terraform -chdir=assets/terraform apply -auto-approve
 make build
-./vault-pki-cli -a $VAULT_ADDR -t $VAULT_TOKEN issue -t test -c /tmp/test.crt -p /tmp/test.key --common-name bla.example.com
+./vault-pki-cli -a $VAULT_ADDR -t $VAULT_TOKEN issue -t test -c /tmp/test.crt -p /tmp/test.key --ca-file /tmp/test.ca.crt --common-name bla.example.com
 ```
