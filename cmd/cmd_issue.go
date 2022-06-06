@@ -179,7 +179,7 @@ func issueCert(config conf.Config) (errors []error) {
 
 		err := pkiImpl.Revoke(serial)
 		if err != nil {
-			log.Error().Msgf("Revoking serial %s failed: %v", serial, err)
+			log.Warn().Msgf("Revoking serial %s failed: %v", serial, err)
 		}
 	}
 
