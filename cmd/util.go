@@ -83,6 +83,8 @@ func NewConfigFromViper() conf.Config {
 		config.IssueArguments.Backends[n].FileGroup = getExpandedFile(val)
 	}
 
+	config.IssueArguments.PostIssueHooks = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_HOOKS)
+
 	config.IssueArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
 
 	config.IssueArguments.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
