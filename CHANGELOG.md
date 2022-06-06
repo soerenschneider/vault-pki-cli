@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.5.1...v1.6.0) (2022-06-06)
+
+
+### Features
+
+* Add support for post-issue hooks ([#28](https://www.github.com/soerenschneider/vault-pki-cli/issues/28)) ([9be4615](https://www.github.com/soerenschneider/vault-pki-cli/commit/9be4615d25ca2f921c2b58f7511b143943c72f9b))
+* write to multiple backends ([#26](https://www.github.com/soerenschneider/vault-pki-cli/issues/26)) ([ba317fd](https://www.github.com/soerenschneider/vault-pki-cli/commit/ba317fd7639f4379d964924062389a32264a13b1))
+
+
+### Bug Fixes
+
+* Fix failing test ([d8aa65b](https://www.github.com/soerenschneider/vault-pki-cli/commit/d8aa65bde5df505dfb8e0feaeb973068abb3f9ad))
+
 ### [1.5.1](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.5.0...v1.5.1) (2022-05-24)
 
 
