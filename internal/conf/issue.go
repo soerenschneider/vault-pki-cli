@@ -134,8 +134,8 @@ func (c *IssueArguments) PrintConfig() {
 	if len(c.AltNames) > 0 {
 		log.Info().Msgf("%s=%v", FLAG_ISSUE_ALT_NAMES, c.AltNames)
 	}
-	if len(c.PostIssueHooks) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_ISSUE_HOOKS, c.PostIssueHooks)
+	for n, hook := range c.PostIssueHooks {
+		log.Info().Msgf("%s[%d]='%s'", FLAG_ISSUE_HOOKS, n, hook)
 	}
 	log.Info().Msgf("------------- Finished printing config values -------------")
 }
