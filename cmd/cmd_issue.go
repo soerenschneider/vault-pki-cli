@@ -53,13 +53,13 @@ func getIssueCmd() *cobra.Command {
 
 	issueCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
 	issueCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
 	issueCmd.PersistentFlags().Uint32(conf.FLAG_ISSUE_YUBIKEY_SLOT, math.MaxUint32, "Yubikey slot to write x509 data to")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_YUBIKEY_PIN, "", "", "PIN to access to Yubikey PIV")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_OWNER, "", "", "Owner of the written files")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_FILE_GROUP, "", "", "Group of the written files")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", "", "File to write the private key to")
-	issueCmd.PersistentFlags().String(conf.FLAG_CA_FILE, "", "File to write the CA certificate to")
+	issueCmd.PersistentFlags().StringSliceP(conf.FLAG_CERTIFICATE_FILE, "c", []string{}, "File to write the certificate to")
+	issueCmd.PersistentFlags().StringSliceP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", []string{}, "File to write the private key to")
+	issueCmd.PersistentFlags().StringSlice(conf.FLAG_CA_FILE, []string{}, "File to write the CA certificate to")
+	issueCmd.PersistentFlags().StringSlice(conf.FLAG_FILE_OWNER, []string{}, "Owner of the written files")
+	issueCmd.PersistentFlags().StringSlice(conf.FLAG_FILE_GROUP, []string{}, "Group of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
@@ -200,26 +200,35 @@ func buildOutput(config conf.Config) (pki.CertBackend, error) {
 }
 
 func buildPemBackend(config conf.Config) (pki.CertBackend, error) {
-	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
-	if err != nil {
-		return nil, fmt.Errorf("could not init private-key-file: %v", err)
-	}
+	var pemBackends []pki.CertBackend
+	for _, backend := range config.Backends {
 
-	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
-	if err != nil {
-		return nil, fmt.Errorf("could not init cert-file: %v", err)
-	}
-
-	var caPod pki.KeyPod
-	if len(config.IssueArguments.CaFile) > 0 {
-		var err error
-		caPod, err = pods.NewFsPod(config.IssueArguments.CaFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+		privateKeyPod, err := pods.NewFsPod(backend.PrivateKeyFile, backend.FileOwner, backend.FileGroup)
 		if err != nil {
-			return nil, fmt.Errorf("could not init ca-file: %v", err)
+			return nil, fmt.Errorf("could not init private-key-file: %v", err)
 		}
+
+		certPod, err := pods.NewFsPod(backend.CertificateFile, backend.FileOwner, backend.FileGroup)
+		if err != nil {
+			return nil, fmt.Errorf("could not init cert-file: %v", err)
+		}
+
+		var caPod pki.KeyPod
+		if len(backend.CaFile) > 0 {
+			var err error
+			caPod, err = pods.NewFsPod(backend.CaFile, backend.FileOwner, backend.FileGroup)
+			if err != nil {
+				return nil, fmt.Errorf("could not init ca-file: %v", err)
+			}
+		}
+		pamBackend, err := backends.NewPemBackend(certPod, privateKeyPod, caPod)
+		if err != nil {
+			return nil, err
+		}
+		pemBackends = append(pemBackends, pamBackend)
 	}
 
-	return backends.NewPemBackend(certPod, privateKeyPod, caPod)
+	return backends.NewMultiBackend(pemBackends...)
 }
 
 func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {

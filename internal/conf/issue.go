@@ -2,9 +2,18 @@ package conf
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/pods"
 )
+
+type Backend struct {
+	CertificateFile string
+	PrivateKeyFile  string
+	CaFile          string
+	FileOwner       string
+	FileGroup       string
+}
 
 type IssueArguments struct {
 	CommonName          string
@@ -13,11 +22,7 @@ type IssueArguments struct {
 	AltNames            []string
 	ForceNewCertificate bool
 
-	CertificateFile string
-	PrivateKeyFile  string
-	CaFile          string
-	FileOwner       string
-	FileGroup       string
+	Backends []Backend
 
 	CertificateLifetimeThresholdPercentage float64
 
@@ -28,11 +33,25 @@ type IssueArguments struct {
 }
 
 func (c *IssueArguments) UsesYubikey() bool {
-	if len(c.CertificateFile) == 0 {
-		return true
+	return c.Backends == nil || len(c.Backends) == 0 || len(c.Backends[0].CertificateFile) == 0
+}
+
+func (c *Backend) Validate() (errs []error) {
+	ownerDefined := len(c.FileOwner) > 0
+	groupDefined := len(c.FileGroup) > 0
+	if !ownerDefined && groupDefined {
+		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_GROUP, FLAG_FILE_OWNER))
+	}
+	if ownerDefined && !groupDefined {
+		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_OWNER, FLAG_FILE_GROUP))
 	}
 
-	return false
+	emptyPrivateKeyFile := len(c.PrivateKeyFile) == 0
+	if emptyPrivateKeyFile {
+		errs = append(errs, fmt.Errorf("must provide private key file '%s'", FLAG_ISSUE_PRIVATE_KEY_FILE))
+	}
+
+	return
 }
 
 func (c *IssueArguments) Validate() []error {
@@ -46,24 +65,18 @@ func (c *IssueArguments) Validate() []error {
 		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
 	}
 
-	ownerDefined := len(c.FileOwner) > 0
-	groupDefined := len(c.FileGroup) > 0
-	if !ownerDefined && groupDefined {
-		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_GROUP, FLAG_FILE_OWNER))
-	}
-	if ownerDefined && !groupDefined {
-		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_OWNER, FLAG_FILE_GROUP))
+	for _, backend := range c.Backends {
+		validationErrs := backend.Validate()
+		errs = append(errs, validationErrs...)
 	}
 
 	emptyYubikeySlot := c.YubikeySlot == FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
-	emptyCertificateFile := len(c.CertificateFile) == 0
-	emptyPrivateKeyFile := len(c.PrivateKeyFile) == 0
-	if (emptyPrivateKeyFile || emptyCertificateFile) && emptyYubikeySlot {
+	if len(c.Backends) == 0 && emptyYubikeySlot {
 		errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
 	}
 
-	if !emptyCertificateFile && !emptyPrivateKeyFile && !emptyYubikeySlot {
-		errs = append(errs, fmt.Errorf("can't provide yubi key slot and both '%s' and '%s'", FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
+	if len(c.Backends) > 0 && !emptyYubikeySlot {
+		errs = append(errs, errors.New("can't provide yubi key slot AND file-based backends"))
 	}
 
 	if !emptyYubikeySlot {
@@ -86,25 +99,28 @@ func (c *IssueArguments) PrintConfig() {
 		log.Info().Msgf("%s=%s", FLAG_ISSUE_YUBIKEY_PIN, "*** (Redacted)")
 	}
 
-	if len(c.CaFile) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_CA_FILE, c.CaFile)
+	for n, backend := range c.Backends {
+		if len(backend.CaFile) > 0 {
+			log.Info().Msgf("%s[%d]=%s", FLAG_CA_FILE, n, backend.CaFile)
+		}
+
+		if len(backend.CertificateFile) > 0 {
+			log.Info().Msgf("%s[%d]=%s", FLAG_CERTIFICATE_FILE, n, backend.CertificateFile)
+		}
+
+		if len(backend.PrivateKeyFile) > 0 {
+			log.Info().Msgf("%s[%d]=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, n, backend.PrivateKeyFile)
+		}
+
+		if len(backend.FileOwner) > 0 {
+			log.Info().Msgf("%s[%d]=%s", FLAG_FILE_OWNER, n, backend.FileOwner)
+		}
+
+		if len(backend.FileGroup) > 0 {
+			log.Info().Msgf("%s[%d]=%s", FLAG_FILE_GROUP, n, backend.FileGroup)
+		}
 	}
 
-	if len(c.CertificateFile) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_CERTIFICATE_FILE, c.CertificateFile)
-	}
-
-	if len(c.PrivateKeyFile) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, c.PrivateKeyFile)
-	}
-
-	if len(c.FileOwner) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_FILE_OWNER, c.FileOwner)
-	}
-
-	if len(c.FileGroup) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_FILE_GROUP, c.FileGroup)
-	}
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_TTL, c.Ttl)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_COMMON_NAME, c.CommonName)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_METRICS_FILE, c.MetricsFile)
