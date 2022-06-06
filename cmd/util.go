@@ -25,6 +25,27 @@ func viperOrEnv(viperKey, envKey string) string {
 	return val
 }
 
+// getNumBackends checks how many arguments per slice have been supplied to determine
+// the size of the backends slice.
+func getNumBackends() int {
+	max := len(viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
+
+	if len(viper.GetViper().GetStringSlice(conf.FLAG_CERTIFICATE_FILE)) > max {
+		max = len(viper.GetViper().GetStringSlice(conf.FLAG_CERTIFICATE_FILE))
+	}
+	if len(viper.GetViper().GetStringSlice(conf.FLAG_CA_FILE)) > max {
+		max = len(viper.GetViper().GetStringSlice(conf.FLAG_CA_FILE))
+	}
+	if len(viper.GetViper().GetStringSlice(conf.FLAG_FILE_OWNER)) > max {
+		max = len(viper.GetViper().GetStringSlice(conf.FLAG_FILE_OWNER))
+	}
+	if len(viper.GetViper().GetStringSlice(conf.FLAG_FILE_GROUP)) > max {
+		max = len(viper.GetViper().GetStringSlice(conf.FLAG_FILE_GROUP))
+	}
+
+	return max
+}
+
 func NewConfigFromViper() conf.Config {
 	config := conf.Config{}
 
@@ -45,12 +66,23 @@ func NewConfigFromViper() conf.Config {
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
 
 	// Issue subcmd
-	config.IssueArguments.Backends = make([]conf.Backend, 1)
-	config.IssueArguments.Backends[0].PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
-	config.IssueArguments.Backends[0].CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
-	config.IssueArguments.Backends[0].CaFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CA_FILE))
-	config.IssueArguments.Backends[0].FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
-	config.IssueArguments.Backends[0].FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
+	config.IssueArguments.Backends = make([]conf.Backend, getNumBackends())
+	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_PRIVATE_KEY_FILE) {
+		config.IssueArguments.Backends[n].PrivateKeyFile = getExpandedFile(val)
+	}
+	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_CERTIFICATE_FILE) {
+		config.IssueArguments.Backends[n].CertificateFile = getExpandedFile(val)
+	}
+	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_CA_FILE) {
+		config.IssueArguments.Backends[n].CaFile = getExpandedFile(val)
+	}
+	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_FILE_OWNER) {
+		config.IssueArguments.Backends[n].FileOwner = getExpandedFile(val)
+	}
+	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_FILE_GROUP) {
+		config.IssueArguments.Backends[n].FileGroup = getExpandedFile(val)
+	}
+
 	config.IssueArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
 
 	config.IssueArguments.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
