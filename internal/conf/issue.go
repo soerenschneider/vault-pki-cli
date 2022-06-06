@@ -24,6 +24,8 @@ type IssueArguments struct {
 
 	Backends []Backend
 
+	PostIssueHooks []string
+
 	CertificateLifetimeThresholdPercentage float64
 
 	YubikeyPin  string
@@ -131,6 +133,9 @@ func (c *IssueArguments) PrintConfig() {
 	}
 	if len(c.AltNames) > 0 {
 		log.Info().Msgf("%s=%v", FLAG_ISSUE_ALT_NAMES, c.AltNames)
+	}
+	for n, hook := range c.PostIssueHooks {
+		log.Info().Msgf("%s[%d]='%s'", FLAG_ISSUE_HOOKS, n, hook)
 	}
 	log.Info().Msgf("------------- Finished printing config values -------------")
 }

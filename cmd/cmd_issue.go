@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -46,6 +47,7 @@ func getIssueCmd() *cobra.Command {
 			viper.BindPFlag(conf.FLAG_ISSUE_METRICS_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_METRICS_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_IP_SANS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_IP_SANS))
 			viper.BindPFlag(conf.FLAG_ISSUE_ALT_NAMES, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_ALT_NAMES))
+			viper.BindPFlag(conf.FLAG_ISSUE_HOOKS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_HOOKS))
 
 			return initializeConfig(cmd)
 		},
@@ -65,6 +67,7 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
+	issueCmd.PersistentFlags().StringSlice(conf.FLAG_ISSUE_HOOKS, []string{}, "Run commands after issuing a new certificate.")
 
 	issueCmd.MarkFlagRequired(conf.FLAG_ISSUE_COMMON_NAME)
 
@@ -169,6 +172,11 @@ func issueCert(config conf.Config) (errors []error) {
 	}
 
 	if outcome == pki.Issued && err == nil && len(serial) > 0 {
+		errs := runPostIssueHooks(config)
+		if len(errs) > 0 {
+			log.Error().Msgf("Encountered errors while running post-issue hooks: %v", errs)
+		}
+
 		err := pkiImpl.Revoke(serial)
 		if err != nil {
 			log.Error().Msgf("Revoking serial %s failed: %v", serial, err)
@@ -251,4 +259,18 @@ func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {
 		return nil, fmt.Errorf("can't build yubikey backend: %v", err)
 	}
 	return yubikeyBackend, nil
+}
+
+func runPostIssueHooks(config conf.Config) (errs []error) {
+	for _, hook := range config.PostIssueHooks {
+		log.Info().Msgf("Running command '%s'", hook)
+		parsed := strings.Split(hook, " ")
+		cmd := exec.Command(parsed[0], parsed[1:]...)
+		err := cmd.Run()
+		if err != nil {
+			errs = append(errs, errors.Errorf("error running command '%s': %v", parsed[0], err))
+		}
+	}
+
+	return
 }
