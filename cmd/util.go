@@ -45,11 +45,12 @@ func NewConfigFromViper() conf.Config {
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
 
 	// Issue subcmd
-	config.IssueArguments.PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
-	config.IssueArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
-	config.IssueArguments.CaFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CA_FILE))
-	config.IssueArguments.FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
-	config.IssueArguments.FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
+	config.IssueArguments.Backends = make([]conf.Backend, 1)
+	config.IssueArguments.Backends[0].PrivateKeyFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
+	config.IssueArguments.Backends[0].CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
+	config.IssueArguments.Backends[0].CaFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CA_FILE))
+	config.IssueArguments.Backends[0].FileOwner = viper.GetViper().GetString(conf.FLAG_FILE_OWNER)
+	config.IssueArguments.Backends[0].FileGroup = viper.GetViper().GetString(conf.FLAG_FILE_GROUP)
 	config.IssueArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
 
 	config.IssueArguments.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)

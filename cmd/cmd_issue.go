@@ -200,26 +200,35 @@ func buildOutput(config conf.Config) (pki.CertBackend, error) {
 }
 
 func buildPemBackend(config conf.Config) (pki.CertBackend, error) {
-	privateKeyPod, err := pods.NewFsPod(config.IssueArguments.PrivateKeyFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
-	if err != nil {
-		return nil, fmt.Errorf("could not init private-key-file: %v", err)
-	}
+	var pemBackends []pki.CertBackend
+	for _, backend := range config.Backends {
 
-	certPod, err := pods.NewFsPod(config.IssueArguments.CertificateFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
-	if err != nil {
-		return nil, fmt.Errorf("could not init cert-file: %v", err)
-	}
-
-	var caPod pki.KeyPod
-	if len(config.IssueArguments.CaFile) > 0 {
-		var err error
-		caPod, err = pods.NewFsPod(config.IssueArguments.CaFile, config.IssueArguments.FileOwner, config.IssueArguments.FileGroup)
+		privateKeyPod, err := pods.NewFsPod(backend.PrivateKeyFile, backend.FileOwner, backend.FileGroup)
 		if err != nil {
-			return nil, fmt.Errorf("could not init ca-file: %v", err)
+			return nil, fmt.Errorf("could not init private-key-file: %v", err)
 		}
+
+		certPod, err := pods.NewFsPod(backend.CertificateFile, backend.FileOwner, backend.FileGroup)
+		if err != nil {
+			return nil, fmt.Errorf("could not init cert-file: %v", err)
+		}
+
+		var caPod pki.KeyPod
+		if len(backend.CaFile) > 0 {
+			var err error
+			caPod, err = pods.NewFsPod(backend.CaFile, backend.FileOwner, backend.FileGroup)
+			if err != nil {
+				return nil, fmt.Errorf("could not init ca-file: %v", err)
+			}
+		}
+		pamBackend, err := backends.NewPemBackend(certPod, privateKeyPod, caPod)
+		if err != nil {
+			return nil, err
+		}
+		pemBackends = append(pemBackends, pamBackend)
 	}
 
-	return backends.NewPemBackend(certPod, privateKeyPod, caPod)
+	return backends.NewMultiBackend(pemBackends...)
 }
 
 func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {
