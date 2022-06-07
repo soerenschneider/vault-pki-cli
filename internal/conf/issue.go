@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/pods"
 )
 
@@ -72,20 +73,24 @@ func (c *IssueArguments) Validate() []error {
 		errs = append(errs, validationErrs...)
 	}
 
-	emptyYubikeySlot := c.YubikeySlot == FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
-	if len(c.Backends) == 0 && emptyYubikeySlot {
-		errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
-	}
-
-	if len(c.Backends) > 0 && !emptyYubikeySlot {
-		errs = append(errs, errors.New("can't provide yubi key slot AND file-based backends"))
-	}
-
-	if !emptyYubikeySlot {
-		err := pods.ValidateSlot(c.YubikeySlot)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
+	if internal.YubiKeySupport == "true" {
+		yubikeyConfigSupplied := c.YubikeySlot != FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
+		if len(c.Backends) == 0 && !yubikeyConfigSupplied {
+			errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
 		}
+
+		if len(c.Backends) > 0 && yubikeyConfigSupplied {
+			errs = append(errs, errors.New("can't provide yubi key slot AND file-based backends"))
+		}
+
+		if yubikeyConfigSupplied {
+			err := pods.ValidateSlot(c.YubikeySlot)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
+			}
+		}
+	} else if len(c.Backends) == 0 {
+		errs = append(errs, errors.New("no backend to store certificate provided"))
 	}
 
 	return errs
