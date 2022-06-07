@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.0...v1.6.1) (2022-06-07)
+
+
+### Bug Fixes
+
+* Signal yubikey support via ldflags ([#33](https://github.com/soerenschneider/vault-pki-cli/issues/33)) ([19fa2f5](https://github.com/soerenschneider/vault-pki-cli/commit/19fa2f5dc41bee559fecc4e8037c001dd73bd2ba))
+
 ## [1.6.0](https://www.github.com/soerenschneider/vault-pki-cli/compare/v1.5.1...v1.6.0) (2022-06-06)
 
 
