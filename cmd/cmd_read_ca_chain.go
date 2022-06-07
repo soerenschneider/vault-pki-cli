@@ -2,7 +2,6 @@ package main
 
 import (
 	log "github.com/rs/zerolog/log"
-	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/spf13/cobra"
@@ -31,7 +30,7 @@ func readCaChainCmd() *cobra.Command {
 func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
 	initializeConfig(ccmd)
 
-	log.Info().Msgf("Version %s (%s)", internal.BuildVersion, internal.CommitHash)
+	PrintVersionInfo()
 	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
 	if len(configFile) > 0 {
 		err := readConfig(configFile)

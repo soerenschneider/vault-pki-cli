@@ -75,7 +75,8 @@ func getIssueCmd() *cobra.Command {
 }
 
 func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
-	log.Info().Msgf("Version %s (%s)", internal.BuildVersion, internal.CommitHash)
+	PrintVersionInfo()
+
 	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
 	if len(configFile) > 0 {
 		err := readConfig(configFile)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ilius/go-askpass"
 	"github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/internal"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -168,4 +169,8 @@ func QueryYubikeyPin() (string, error) {
 	}
 
 	return pin, nil
+}
+
+func PrintVersionInfo() {
+	log.Info().Msgf("Version %s (%s), YubikeySupport=%s", internal.BuildVersion, internal.CommitHash, internal.YubiKeySupport)
 }
