@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/soerenschneider/vault-pki-cli)](https://goreportcard.com/report/github.com/soerenschneider/vault-pki-cli)
+
 # vault-pki-cli
 - can be considered a PKI swiss knife that interacts with Hashicorp Vault
 - can be used as a building block to enable zero-trust-policy
