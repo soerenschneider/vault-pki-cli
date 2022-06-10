@@ -200,6 +200,9 @@ func (p *PkiCli) Sign(csrPod, certPod KeyPod, opts conf.SignArguments) error {
 	defer p.cleanup()
 
 	csr, err := csrPod.Read()
+	if err != nil {
+		return err
+	}
 
 	log.Info().Msg("Trying to sign certificate")
 	resp, err := p.pkiImpl.Sign(string(csr), opts)
