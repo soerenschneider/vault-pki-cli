@@ -121,7 +121,7 @@ func (pod *YubikeyPod) Write(data []byte) error {
 	}
 
 	return pod.yubikey.SetPrivateKeyInsecure(*managementKey, pod.slot, priv, piv.Key{
-		TouchPolicy: piv.TouchPolicyAlways,
+		TouchPolicy: piv.TouchPolicyCached,
 		PINPolicy:   piv.PINPolicyOnce,
 	})
 }
