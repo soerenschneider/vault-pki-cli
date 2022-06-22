@@ -3,6 +3,8 @@
 package pods
 
 import (
+	"crypto/rand"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/go-piv/piv-go/piv"
@@ -57,7 +59,7 @@ func (pod *YubikeyPod) getManagementKey() (*[24]byte, error) {
 		return nil, err
 	}
 	if m.ManagementKey == nil {
-		return nil, err
+		return nil, errors.New("no management key found")
 	}
 	return m.ManagementKey, nil
 }
@@ -105,6 +107,13 @@ func (pod *YubikeyPod) CanRead() error {
 
 func (pod *YubikeyPod) Write(data []byte) error {
 	cert, err := pkg.ParseCertPem(data)
+	priv, err := pkg.ParsePrivate(data)
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, cert.PublicKey, priv)
+	if err != nil {
+		return err
+	}
+
+	cert, err = x509.ParseCertificate(certBytes)
 	if err != nil {
 		return err
 	}

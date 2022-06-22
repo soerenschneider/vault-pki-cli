@@ -10,6 +10,29 @@ import (
 	"strings"
 )
 
+func ParsePrivate(data []byte) (any, error) {
+	if data == nil {
+		return nil, errors.New("emtpy data provided")
+	}
+
+	var der *pem.Block
+	rest := data
+	for {
+		der, rest = pem.Decode(rest)
+		if der == nil {
+			return nil, errors.New("invalid pem provided")
+		}
+
+		if !strings.Contains(der.Type, "PRIVATE KEY") {
+			continue
+		}
+
+		cert, err := x509.ParsePKCS1PrivateKey(der.Bytes)
+		return cert, err
+
+	}
+}
+
 func ParseCertPem(data []byte) (*x509.Certificate, error) {
 	if data == nil {
 		return nil, errors.New("emtpy data provided")
