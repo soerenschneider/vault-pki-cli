@@ -21,11 +21,14 @@ func NewYubikeyBackend(pod *pods.YubikeyPod) (*YubikeyBackend, error) {
 
 func (f *YubikeyBackend) Write(certData *pki.CertData) error {
 	var dataPortion []byte
+
 	if certData.HasCaChain() {
 		dataPortion = append(dataPortion, certData.CaChain...)
+		dataPortion = append(dataPortion, []byte("\n")...)
 	}
 
 	dataPortion = append(dataPortion, certData.Certificate...)
+	dataPortion = append(dataPortion, []byte("\n")...)
 
 	if certData.HasPrivateKey() {
 		dataPortion = append(dataPortion, certData.PrivateKey...)
