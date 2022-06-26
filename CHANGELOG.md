@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.1...v1.6.2) (2022-06-20)
+
+
+### Bug Fixes
+
+* fix unhandled error ([07107bb](https://github.com/soerenschneider/vault-pki-cli/commit/07107bbdbba0e0cfcc1434958835fd18ad310643))
+
 ## [1.6.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.0...v1.6.1) (2022-06-07)
 
 
