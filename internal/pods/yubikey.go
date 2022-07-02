@@ -57,7 +57,7 @@ func (pod *YubikeyPod) getManagementKey() (*[24]byte, error) {
 		return nil, err
 	}
 	if m.ManagementKey == nil {
-		return nil, err
+		return nil, errors.New("no management key found")
 	}
 	return m.ManagementKey, nil
 }
@@ -104,16 +104,26 @@ func (pod *YubikeyPod) CanRead() error {
 }
 
 func (pod *YubikeyPod) Write(data []byte) error {
-	cert, err := pkg.ParseCertPem(data)
-	if err != nil {
-		return err
-	}
-
 	managementKey, err := pod.getManagementKey()
 	if err != nil {
 		return err
 	}
-	return pod.yubikey.SetCertificate(*managementKey, pod.slot, cert)
+
+	cert, err := pkg.ParseCertPem(data)
+	err = pod.yubikey.SetCertificate(*managementKey, pod.slot, cert)
+	if err != nil {
+		return err
+	}
+
+	priv, err := pkg.ParsePrivate(data)
+	if err != nil {
+		return err
+	}
+
+	return pod.yubikey.SetPrivateKeyInsecure(*managementKey, pod.slot, priv, piv.Key{
+		TouchPolicy: piv.TouchPolicyCached,
+		PINPolicy:   piv.PINPolicyOnce,
+	})
 }
 
 func (pod *YubikeyPod) CanWrite() error {

@@ -1,6 +1,6 @@
 module github.com/soerenschneider/vault-pki-cli
 
-go 1.17
+go 1.18
 
 require (
 	github.com/go-piv/piv-go v1.9.0
