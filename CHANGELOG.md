@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.2...v1.6.3) (2022-07-19)
+
+
+### Bug Fixes
+
+* Fix yubikey backend ([#39](https://github.com/soerenschneider/vault-pki-cli/issues/39)) ([ceb1234](https://github.com/soerenschneider/vault-pki-cli/commit/ceb12347fbe3ec60b656abe6b6eba17288618a55))
+
 ## [1.6.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.1...v1.6.2) (2022-06-20)
 
 
