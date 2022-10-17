@@ -11,7 +11,7 @@ require (
 	github.com/prometheus/client_golang v1.13.0
 	github.com/prometheus/common v0.37.0
 	github.com/rs/zerolog v1.28.0
-	github.com/spf13/cobra v1.5.0
+	github.com/spf13/cobra v1.6.0
 	github.com/spf13/viper v1.12.0
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 )
@@ -43,7 +43,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/vault/sdk v0.5.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -77,5 +77,5 @@ require (
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
