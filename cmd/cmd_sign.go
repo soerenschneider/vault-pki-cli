@@ -37,7 +37,7 @@ func getSignCmd() *cobra.Command {
 			viper.BindPFlag(conf.FLAG_ISSUE_IP_SANS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_IP_SANS))
 			viper.BindPFlag(conf.FLAG_ISSUE_ALT_NAMES, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_ALT_NAMES))
 
-			return initializeConfig(cmd)
+			return nil
 		},
 	}
 
@@ -61,19 +61,20 @@ func getSignCmd() *cobra.Command {
 func signCertEntryPoint(ccmd *cobra.Command, args []string) {
 	PrintVersionInfo()
 	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
+	var config *conf.Config
 	if len(configFile) > 0 {
-		err := readConfig(configFile)
+		var err error
+		config, err = readConfig(configFile)
 		if err != nil {
 			log.Fatal().Msgf("Could not load desired config file: %s: %v", configFile, err)
 		}
 		log.Info().Msgf("Read config from file %s", viper.ConfigFileUsed())
 	}
 
-	config := NewConfigFromViper()
 	config.PrintConfig()
 	config.SignArguments.PrintConfig()
 
-	err := signCert(config)
+	err := signCert(*config)
 	if len(err) > 0 {
 		log.Error().Msgf("signing CSR not successful, %v", err)
 		internal.MetricSuccess.Set(0)

@@ -1,64 +1,106 @@
 package conf
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/pods"
+	"github.com/soerenschneider/vault-pki-cli/internal/conf/issue_sinks"
+	"github.com/spf13/viper"
 )
 
-type Backend struct {
-	CertificateFile string
-	PrivateKeyFile  string
-	CaFile          string
-	FileOwner       string
-	FileGroup       string
+type Backend interface {
+	PrintConfig()
+	Validate() []error
+	GetType() string
 }
 
 type IssueArguments struct {
-	CommonName          string
-	Ttl                 string
-	IpSans              []string
-	AltNames            []string
+	CommonName          string   `mapstructure:"common_name"`
+	Ttl                 string   `mapstructure:"ttl"`
+	IpSans              []string `mapstructure:"ip_sans"`
+	AltNames            []string `mapstructure:"alt_names"`
 	ForceNewCertificate bool
+	BackendConfig       []issue_sinks.SinkConfig `mapstructure:"backend_config"`
 
 	Backends []Backend
 
-	PostIssueHooks []string
+	PostIssueHooks                         []string `mapstructure:"post_hooks""`
+	CertificateLifetimeThresholdPercentage float64  `mapstructure:"threshold"`
+	MetricsFile                            string
+}
 
-	CertificateLifetimeThresholdPercentage float64
+func ParseFlags(config *Config) {
+	if viper.IsSet(FLAG_ISSUE_COMMON_NAME) {
+		config.VaultSecretIdFile = viper.GetString(FLAG_ISSUE_COMMON_NAME)
+	}
+	if viper.IsSet(FLAG_ISSUE_TTL) {
+		config.VaultSecretIdFile = viper.GetString(FLAG_ISSUE_TTL)
+	}
+	if viper.IsSet(FLAG_ISSUE_IP_SANS) {
+		config.VaultSecretIdFile = viper.GetString(FLAG_ISSUE_IP_SANS)
+	}
+	if viper.IsSet(FLAG_ISSUE_ALT_NAMES) {
+		config.VaultSecretIdFile = viper.GetString(FLAG_ISSUE_ALT_NAMES)
+	}
+	config.ForceNewCertificate = viper.GetBool(FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
 
-	YubikeyPin  string
-	YubikeySlot uint32
+	if viper.IsSet(FLAG_ISSUE_HOOKS) {
+		config.PostIssueHooks = viper.GetStringSlice(FLAG_ISSUE_HOOKS)
+	}
 
-	MetricsFile string
+	if viper.IsSet(FLAG_ISSUE_METRICS_FILE) {
+		config.IssueArguments.MetricsFile = viper.GetString(FLAG_ISSUE_METRICS_FILE)
+	}
+}
+
+func (c *IssueArguments) BuildBackends() error {
+	for _, conf := range c.BackendConfig {
+		backend, err := buildBackend(conf)
+		if err != nil {
+			return fmt.Errorf("could not build backend: %v", err)
+		}
+		c.Backends = append(c.Backends, backend)
+	}
+	c.BackendConfig = []issue_sinks.SinkConfig{}
+	return nil
+}
+
+func buildBackend(backend issue_sinks.SinkConfig) (Backend, error) {
+	backendType, ok := backend["type"]
+	if !ok {
+		return nil, errors.New("configured backend doesn't have a 'type' field")
+	}
+
+	switch backendType {
+	case issue_sinks.K8sType:
+		return issue_sinks.K8sBackendFromMap(backend)
+	case issue_sinks.FsType:
+		return issue_sinks.FsBackendFromMap(backend)
+	case issue_sinks.YubiType:
+		return issue_sinks.YubiSinkFromMap(backend)
+	default:
+		return nil, fmt.Errorf("unknown type: %s", backendType)
+	}
 }
 
 func (c *IssueArguments) UsesYubikey() bool {
-	return c.Backends == nil || len(c.Backends) == 0 || len(c.Backends[0].CertificateFile) == 0
-}
-
-func (c *Backend) Validate() (errs []error) {
-	ownerDefined := len(c.FileOwner) > 0
-	groupDefined := len(c.FileGroup) > 0
-	if !ownerDefined && groupDefined {
-		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_GROUP, FLAG_FILE_OWNER))
-	}
-	if ownerDefined && !groupDefined {
-		errs = append(errs, fmt.Errorf("only '%s' defined but not '%s'", FLAG_FILE_OWNER, FLAG_FILE_GROUP))
+	if internal.YubiKeySupport == "false" {
+		return false
 	}
 
-	emptyPrivateKeyFile := len(c.PrivateKeyFile) == 0
-	if emptyPrivateKeyFile {
-		errs = append(errs, fmt.Errorf("must provide private key file '%s'", FLAG_ISSUE_PRIVATE_KEY_FILE))
-	}
-
-	return
+	return false
 }
 
 func (c *IssueArguments) Validate() []error {
 	errs := make([]error, 0)
+
+	/*
+		for _, backend := range c.Backends {
+			errs = append(errs, backend.Validate()...)
+		}
+
+	*/
 
 	if len(c.CommonName) == 0 {
 		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
@@ -68,66 +110,33 @@ func (c *IssueArguments) Validate() []error {
 		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
 	}
 
-	for _, backend := range c.Backends {
-		validationErrs := backend.Validate()
-		errs = append(errs, validationErrs...)
-	}
-
-	if internal.YubiKeySupport == "true" {
-		yubikeyConfigSupplied := c.YubikeySlot != FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
-		if len(c.Backends) == 0 && !yubikeyConfigSupplied {
-			errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
-		}
-
-		if len(c.Backends) > 0 && yubikeyConfigSupplied {
-			errs = append(errs, errors.New("can't provide yubi key slot AND file-based backends"))
-		}
-
-		if yubikeyConfigSupplied {
-			err := pods.ValidateSlot(c.YubikeySlot)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
+	/*
+		if internal.YubiKeySupport == "true" {
+			yubikeyConfigSupplied := c.YubikeySink.YubikeySlot != FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT
+			if len(c.FsBackends) == 0 && len(c.K8sBackends) == 0 && !yubikeyConfigSupplied {
+				errs = append(errs, fmt.Errorf("must either provide '%s' or both '%s' and '%s'", FLAG_ISSUE_YUBIKEY_SLOT, FLAG_CERTIFICATE_FILE, FLAG_ISSUE_PRIVATE_KEY_FILE))
 			}
-		}
-	} else if len(c.Backends) == 0 {
-		errs = append(errs, errors.New("no backend to store certificate provided"))
-	}
 
+			if (len(c.FsBackends) > 0 || len(c.K8sBackends) > 0) && yubikeyConfigSupplied {
+				errs = append(errs, errors.New("can't provide yubi key slot AND file-based sink"))
+			}
+
+			if yubikeyConfigSupplied {
+				err := pods.ValidateSlot(c.YubikeySink.YubikeySlot)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("invalid yubikey slot '%d': %v", c.YubikeySlot, err))
+				}
+			}
+		} else if len(c.FsBackends) == 0 && len(c.K8sBackends) == 0 {
+			errs = append(errs, errors.New("no backend to store certificate provided"))
+		}
+
+	*/
 	return errs
 }
 
 func (c *IssueArguments) PrintConfig() {
 	log.Info().Msg("------------- Printing issue cmd values -------------")
-	if c.YubikeySlot != FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT {
-		log.Info().Msgf("%s=%x", FLAG_ISSUE_YUBIKEY_SLOT, c.YubikeySlot)
-	}
-
-	if len(c.YubikeyPin) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_ISSUE_YUBIKEY_PIN, "*** (Redacted)")
-	}
-
-	for n, backend := range c.Backends {
-		if len(backend.CaFile) > 0 {
-			log.Info().Msgf("%s[%d]=%s", FLAG_CA_FILE, n, backend.CaFile)
-		}
-
-		if len(backend.CertificateFile) > 0 {
-			log.Info().Msgf("%s[%d]=%s", FLAG_CERTIFICATE_FILE, n, backend.CertificateFile)
-		}
-
-		if len(backend.PrivateKeyFile) > 0 {
-			log.Info().Msgf("%s[%d]=%s", FLAG_ISSUE_PRIVATE_KEY_FILE, n, backend.PrivateKeyFile)
-		}
-
-		if len(backend.FileOwner) > 0 {
-			log.Info().Msgf("%s[%d]=%s", FLAG_FILE_OWNER, n, backend.FileOwner)
-		}
-
-		if len(backend.FileGroup) > 0 {
-			log.Info().Msgf("%s[%d]=%s", FLAG_FILE_GROUP, n, backend.FileGroup)
-		}
-	}
-
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_TTL, c.Ttl)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_COMMON_NAME, c.CommonName)
 	log.Info().Msgf("%s=%s", FLAG_ISSUE_METRICS_FILE, c.MetricsFile)

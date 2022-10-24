@@ -5,7 +5,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -67,28 +66,17 @@ func main() {
 	}
 }
 
-func initializeConfig(cmd *cobra.Command) error {
-	v := viper.GetViper()
-
-	v.SetConfigName(defaultConfigFilename)
-
-	v.AddConfigPath("$HOME/.config/vault-pki-cli")
-	v.AddConfigPath("/etc/vault-pki-cli/")
-
-	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return err
-		}
+func readConfig(filepath string) (*conf.Config, error) {
+	viper.SetConfigType("yaml")
+	viper.SetConfigName(filepath)
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(fmt.Errorf("Error config.yaml file: %s \n", err))
 	}
 
-	v.SetEnvPrefix(envPrefix)
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	v.AutomaticEnv()
+	config := conf.NewDefaultConfig()
+	err = viper.Unmarshal(&config)
 
-	return nil
-}
-
-func readConfig(filepath string) error {
-	viper.SetConfigFile(filepath)
-	return viper.ReadInConfig()
+	return &config, err
 }

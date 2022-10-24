@@ -3,7 +3,6 @@ package pods
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -54,7 +53,7 @@ func NewFsPod(path, owner, group string) (*FsPod, error) {
 }
 
 func (fs *FsPod) Read() ([]byte, error) {
-	return ioutil.ReadFile(fs.FilePath)
+	return os.ReadFile(fs.FilePath)
 }
 
 func (fs *FsPod) CanRead() error {
@@ -63,7 +62,7 @@ func (fs *FsPod) CanRead() error {
 }
 
 func (fs *FsPod) Write(signedData []byte) error {
-	err := ioutil.WriteFile(fs.FilePath, signedData, 0640)
+	err := os.WriteFile(fs.FilePath, signedData, 0640)
 	if err != nil {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
 	}

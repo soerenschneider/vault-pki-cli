@@ -1,4 +1,4 @@
-package backends
+package sink
 
 import (
 	"crypto/x509"

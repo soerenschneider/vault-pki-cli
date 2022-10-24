@@ -27,7 +27,7 @@ func viperOrEnv(viperKey, envKey string) string {
 }
 
 // getNumBackends checks how many arguments per slice have been supplied to determine
-// the size of the backends slice.
+// the size of the sink slice.
 func getNumBackends() int {
 	max := len(viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
 
@@ -65,39 +65,6 @@ func NewConfigFromViper() conf.Config {
 	// Fetch subcmd
 	config.FetchArguments.OutputFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_OUTPUT_FILE))
 	config.FetchArguments.DerEncoded = viper.GetViper().GetBool(conf.FLAG_DER_ENCODED)
-
-	// Issue subcmd
-	config.IssueArguments.Backends = make([]conf.Backend, getNumBackends())
-	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_PRIVATE_KEY_FILE) {
-		config.IssueArguments.Backends[n].PrivateKeyFile = getExpandedFile(val)
-	}
-	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_CERTIFICATE_FILE) {
-		config.IssueArguments.Backends[n].CertificateFile = getExpandedFile(val)
-	}
-	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_CA_FILE) {
-		config.IssueArguments.Backends[n].CaFile = getExpandedFile(val)
-	}
-	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_FILE_OWNER) {
-		config.IssueArguments.Backends[n].FileOwner = getExpandedFile(val)
-	}
-	for n, val := range viper.GetViper().GetStringSlice(conf.FLAG_FILE_GROUP) {
-		config.IssueArguments.Backends[n].FileGroup = getExpandedFile(val)
-	}
-
-	config.IssueArguments.PostIssueHooks = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_HOOKS)
-
-	config.IssueArguments.MetricsFile = viper.GetViper().GetString(conf.FLAG_ISSUE_METRICS_FILE)
-
-	config.IssueArguments.ForceNewCertificate = viper.GetViper().GetBool(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE)
-	config.IssueArguments.CertificateLifetimeThresholdPercentage = viper.GetViper().GetFloat64(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE)
-
-	config.IssueArguments.CommonName = viper.GetViper().GetString(conf.FLAG_ISSUE_COMMON_NAME)
-	config.IssueArguments.Ttl = viper.GetViper().GetString(conf.FLAG_ISSUE_TTL)
-	config.IssueArguments.IpSans = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_IP_SANS)
-	config.IssueArguments.AltNames = viper.GetViper().GetStringSlice(conf.FLAG_ISSUE_ALT_NAMES)
-
-	config.IssueArguments.YubikeyPin = viper.GetViper().GetString(conf.FLAG_ISSUE_YUBIKEY_PIN)
-	config.IssueArguments.YubikeySlot = viper.GetViper().GetUint32(conf.FLAG_ISSUE_YUBIKEY_SLOT)
 
 	// Sign subcmd
 	config.SignArguments.CertificateFile = getExpandedFile(viper.GetViper().GetString(conf.FLAG_CERTIFICATE_FILE))
