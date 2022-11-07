@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/vault/api v1.7.2
 	github.com/ilius/go-askpass v0.0.0-20200508084844-f833acf6c50c
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.13.1
 	github.com/prometheus/common v0.37.0
 	github.com/rs/zerolog v1.28.0
 	github.com/spf13/cobra v1.5.0
