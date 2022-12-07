@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/vault/api"
+	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"strings"
@@ -39,6 +40,27 @@ func NewVaultPki(client *api.Client, auth AuthMethod, config conf.Config) (*Vaul
 }
 
 func (c *VaultClient) Revoke(serial string) error {
+	token, err := c.auth.Authenticate()
+	if err != nil {
+		return fmt.Errorf("could not authenticate: %v", err)
+	}
+
+	c.client.SetToken(token)
+
+	path := fmt.Sprintf("%s/revoke", c.mountPath)
+	data := map[string]interface{}{
+		"serial_number": serial,
+	}
+
+	resp, err := c.client.Logical().Write(path, data)
+	if err != nil {
+		return fmt.Errorf("could not revoke certificate: %v", err)
+	}
+
+	if resp != nil && len(resp.Warnings) > 0 {
+		log.Warn().Msgf("revoking cert produced warning: %v", resp.Warnings)
+	}
+
 	return nil
 }
 
