@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.3...v1.7.0) (2022-12-07)
+
+
+### Features
+
+* Implement revoke operation ([#71](https://github.com/soerenschneider/vault-pki-cli/issues/71)) ([15fd650](https://github.com/soerenschneider/vault-pki-cli/commit/15fd6500280ce0e35df4cce13dc6588e9ff0aebb))
+
 ## [1.6.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.2...v1.6.3) (2022-07-19)
 
 
