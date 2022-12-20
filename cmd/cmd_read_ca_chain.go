@@ -1,27 +1,21 @@
 package main
 
 import (
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"os"
 )
 
 func readCaChainCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-ca-chain",
-		Short: "Read pki ca cert chain from vault",
+		Short: "ReadCert pki ca cert chain from vault",
 		Run:   fetchCaChainEntryPoint,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// See https://github.com/spf13/viper/issues/233#issuecomment-386791444
-			viper.BindPFlag(conf.FLAG_OUTPUT_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_OUTPUT_FILE))
-			return nil
-		},
 	}
 
-	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "Write ca certificate chain to this file")
+	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteCert ca certificate chain to this file")
 	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
 	return getCaCmd
@@ -30,15 +24,9 @@ func readCaChainCmd() *cobra.Command {
 func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
 
 	PrintVersionInfo()
-	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
-	var config *conf.Config
-	if len(configFile) > 0 {
-		var err error
-		config, err = readConfig(configFile)
-		if err != nil {
-			log.Fatal().Msgf("Could not load desired config file: %s: %v", configFile, err)
-		}
-		log.Info().Msgf("Read config from file %s", viper.ConfigFileUsed())
+	config, err := config()
+	if err != nil {
+		log.Fatal().Err(err)
 	}
 
 	if len(config.VaultAddress) == 0 {
@@ -51,7 +39,6 @@ func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	config.FetchArguments.PrintConfig()
 	certData, err := vault.FetchCertChain(config.VaultAddress, config.VaultMountPki)
 	if err != nil {
 		os.Exit(1)

@@ -23,7 +23,7 @@ func Test_buildPemBackend(t *testing.T) {
 			args: args{
 				conf.Config{
 					IssueArguments: conf.IssueArguments{
-						Backends: []conf.FsBackend{
+						Backends: []conf{
 							{
 								CertificateFile: "/tmp/cert.crt",
 								PrivateKeyFile:  "/tmp/cert.key",
@@ -42,12 +42,12 @@ func Test_buildPemBackend(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildPemBackend(tt.args.config)
+			got, err := buildFilesystemSink(tt.args.config)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("buildPemBackend() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("buildFilesystemSink() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			got.Write(&pki.CertData{
+			got.WriteCert(&pki.CertData{
 				PrivateKey:  []byte("private"),
 				Certificate: []byte("cert"),
 				CaChain:     []byte("chain"),
@@ -61,7 +61,7 @@ func Test_parseUri(t *testing.T) {
 	tests := []struct {
 		name    string
 		uri     string
-		want    pki.CertSink
+		want    pki.IssueSink
 		wantErr bool
 	}{
 		{

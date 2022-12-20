@@ -9,24 +9,24 @@ import (
 )
 
 type PemSink struct {
-	ca         pki.KeyPod
-	cert       pki.KeyPod
-	privateKey pki.KeyPod
+	ca         pki.StorageImplementation
+	cert       pki.StorageImplementation
+	privateKey pki.StorageImplementation
 }
 
-func NewPemSink(cert, privateKey, chain pki.KeyPod) (*PemSink, error) {
+func NewPemSink(cert, privateKey, chain pki.StorageImplementation) (*PemSink, error) {
 	if nil == cert {
-		return nil, errors.New("empty cert pod provided")
+		return nil, errors.New("empty cert storage provided")
 	}
 
 	if nil == privateKey {
-		return nil, errors.New("empty private key pod provided")
+		return nil, errors.New("empty private key storage provided")
 	}
 
 	return &PemSink{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
-func (f *PemSink) Write(certData *pki.CertData) error {
+func (f *PemSink) WriteCert(certData *pki.CertData) error {
 	if certData.HasCaChain() && f.ca != nil {
 		log.Println("--------------------------")
 		if err := f.ca.Write(append(certData.CaChain, "\n"...)); err != nil {
@@ -45,7 +45,7 @@ func (f *PemSink) Write(certData *pki.CertData) error {
 	return nil
 }
 
-func (f *PemSink) Read() (*x509.Certificate, error) {
+func (f *PemSink) ReadCert() (*x509.Certificate, error) {
 	data, err := f.cert.Read()
 	if err != nil {
 		return nil, err

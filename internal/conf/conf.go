@@ -2,7 +2,8 @@ package conf
 
 import (
 	"fmt"
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
+	"reflect"
 )
 
 type Config struct {
@@ -15,36 +16,31 @@ type Config struct {
 	VaultMountApprole string `mapstructure:"vault_mount_approle"`
 	VaultPkiRole      string `mapstructure:"vault_pki_role"`
 
-	SignArguments   `mapstructure:"sign"`
-	IssueArguments  `mapstructure:"issue"`
-	RevokeArguments `mapstructure:"revoke"`
-	FetchArguments  `mapstructure:"fetch"`
+	CommonName string   `mapstructure:"common_name"`
+	Ttl        string   `mapstructure:"ttl"`
+	IpSans     []string `mapstructure:"ip_sans"`
+	AltNames   []string `mapstructure:"alt_names"`
+
+	MetricsFile string
+
+	ForceNewCertificate bool
+	StorageConfig       []map[string]string `mapstructure:"storage"`
+
+	PostIssueHooks                         []string `mapstructure:"post_hooks""`
+	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime_threshold_percent"`
+
+	DerEncoded bool
 }
 
-func NewDefaultConfig() Config {
-	return Config{
-		VaultMountPki:     FLAG_VAULT_MOUNT_PKI_DEFAULT,
-		VaultMountApprole: FLAG_VAULT_MOUNT_APPROLE_DEFAULT,
-		VaultPkiRole:      FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT,
-
-		SignArguments: SignArguments{
-			Ttl:         FLAG_ISSUE_TTL_DEFAULT,
-			FileOwner:   FLAG_FILE_OWNER_DEFAULT,
-			MetricsFile: FLAG_ISSUE_METRICS_FILE_DEFAULT,
-		},
-
-		IssueArguments: IssueArguments{
-			Ttl:                                    FLAG_ISSUE_TTL_DEFAULT,
-			CertificateLifetimeThresholdPercentage: FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT,
-			MetricsFile:                            FLAG_ISSUE_METRICS_FILE_DEFAULT,
-		},
-
-		RevokeArguments: RevokeArguments{},
-
-		FetchArguments: FetchArguments{
-			DerEncoded: false,
-		},
+func (c *Config) Print() {
+	log.Info().Msg("Active config values")
+	val := reflect.ValueOf(c).Elem()
+	for i := 0; i < val.NumField(); i++ {
+		if !val.Field(i).IsZero() {
+			log.Info().Msgf("%s=%v", val.Type().Field(i).Name, val.Field(i))
+		}
 	}
+	log.Info().Msg("End config values")
 }
 
 func (c *Config) Validate() []error {
@@ -83,25 +79,4 @@ func (c *Config) Validate() []error {
 	}
 
 	return errs
-}
-
-func (c *Config) PrintConfig() {
-	log.Info().Msg("------------- Printing common config values -------------")
-	log.Info().Msgf("%s=%s", FLAG_VAULT_ADDRESS, c.VaultAddress)
-	if len(c.VaultToken) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_TOKEN)
-	}
-	if len(c.VaultRoleId) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_ROLE_ID)
-	}
-	if len(c.VaultSecretId) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_SECRET_ID)
-	}
-	if len(c.VaultSecretIdFile) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_VAULT_SECRET_ID_FILE, c.VaultSecretIdFile)
-	}
-
-	log.Info().Msgf("%s=%s", FLAG_VAULT_MOUNT_PKI, c.VaultMountPki)
-	log.Info().Msgf("%s=%s", FLAG_VAULT_MOUNT_APPROLE, c.VaultMountApprole)
-	log.Info().Msgf("%s=%s", FLAG_VAULT_PKI_BACKEND_ROLE, c.VaultPkiRole)
 }

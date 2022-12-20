@@ -1,8 +1,9 @@
-package pods
+package storage
 
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -11,13 +12,38 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type FsPod struct {
+type FilesystemStorage struct {
 	FilePath  string
 	FileOwner *int
 	FileGroup *int
 }
 
-func NewFsPod(path, owner, group string) (*FsPod, error) {
+const FsScheme = "file"
+
+func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
+	parsed, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	path := parsed.Path
+
+	var username, pass string
+	userData := parsed.User
+	if userData != nil {
+		username = userData.Username()
+
+		var ok bool
+		pass, ok = userData.Password()
+		if !ok {
+			pass = ""
+		}
+	}
+
+	return NewFilesystemStorage(path, username, pass)
+}
+
+func NewFilesystemStorage(path, owner, group string) (*FilesystemStorage, error) {
 	if len(path) == 0 {
 		return nil, errors.New("empty path provided")
 	}
@@ -45,23 +71,23 @@ func NewFsPod(path, owner, group string) (*FsPod, error) {
 		gid = &conv
 	}
 
-	return &FsPod{
+	return &FilesystemStorage{
 		FilePath:  path,
 		FileOwner: uid,
 		FileGroup: gid,
 	}, nil
 }
 
-func (fs *FsPod) Read() ([]byte, error) {
+func (fs *FilesystemStorage) Read() ([]byte, error) {
 	return os.ReadFile(fs.FilePath)
 }
 
-func (fs *FsPod) CanRead() error {
+func (fs *FilesystemStorage) CanRead() error {
 	_, err := os.Stat(fs.FilePath)
 	return err
 }
 
-func (fs *FsPod) Write(signedData []byte) error {
+func (fs *FilesystemStorage) Write(signedData []byte) error {
 	err := os.WriteFile(fs.FilePath, signedData, 0640)
 	if err != nil {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
@@ -77,7 +103,7 @@ func (fs *FsPod) Write(signedData []byte) error {
 	return nil
 }
 
-func (fs *FsPod) CanWrite() error {
+func (fs *FilesystemStorage) CanWrite() error {
 	dir := filepath.Dir(fs.FilePath)
 	return unix.Access(dir, unix.W_OK)
 }

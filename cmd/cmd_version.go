@@ -10,7 +10,6 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version and exit",
-
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println(internal.BuildVersion)
 	},

@@ -25,10 +25,10 @@ const (
 
 type Pki interface {
 	// Issue issues a new certificate from the PKI
-	Issue(opts conf.IssueArguments) (*CertData, error)
+	Issue(opts conf.Config) (*CertData, error)
 
 	// Sign signs a CSR
-	Sign(csr string, opts conf.SignArguments) (*Signature, error)
+	Sign(csr string, opts conf.Config) (*Signature, error)
 
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
@@ -157,9 +157,9 @@ func (p *PkiCli) cleanup() {
 	}
 }
 
-func (p *PkiCli) Issue(format CertSink, opts conf.IssueArguments) (IssueOutcome, error) {
+func (p *PkiCli) Issue(format IssueSink, opts conf.Config) (IssueOutcome, error) {
 	defer p.cleanup()
-	certData, err := format.Read()
+	certData, err := format.ReadCert()
 	if err == nil && certData != nil {
 		renew, err := shouldIssueNewCertificate(certData, p.strategy)
 		if err == nil && !renew {
@@ -188,7 +188,7 @@ func (p *PkiCli) Issue(format CertSink, opts conf.IssueArguments) (IssueOutcome,
 		updateCertificateMetrics(x509Cert)
 	}
 
-	err = format.Write(cert)
+	err = format.WriteCert(cert)
 	if err != nil {
 		return Error, fmt.Errorf("could not write bundle to backend: %v", err)
 	}
@@ -196,10 +196,10 @@ func (p *PkiCli) Issue(format CertSink, opts conf.IssueArguments) (IssueOutcome,
 	return Issued, nil
 }
 
-func (p *PkiCli) Sign(csrPod, certPod KeyPod, opts conf.SignArguments) error {
+func (p *PkiCli) Sign(sink CsrSink, opts conf.Config) error {
 	defer p.cleanup()
 
-	csr, err := csrPod.Read()
+	csr, err := sink.ReadCsr()
 	if err != nil {
 		return err
 	}
@@ -221,18 +221,9 @@ func (p *PkiCli) Sign(csrPod, certPod KeyPod, opts conf.SignArguments) error {
 		updateCertificateMetrics(x509Cert)
 	}
 
-	err = certPod.Write(resp.Certificate)
+	err = sink.WriteCert(resp.Certificate)
 	if err != nil {
 		return fmt.Errorf("could not write certificate file to backend: %v", err)
 	}
 	return nil
-}
-
-func parseCert(certFile KeyPod) (*x509.Certificate, error) {
-	content, err := certFile.Read()
-	if err != nil {
-		return nil, fmt.Errorf("could not read certificate data: %v", err)
-	}
-
-	return pkg.ParseCertPem(content)
 }
