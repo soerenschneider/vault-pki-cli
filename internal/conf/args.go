@@ -15,6 +15,7 @@ const (
 	FLAG_ISSUE_FORCE_NEW_CERTIFICATE         = "force-new-certificate"
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE = "lifetime-threshold-percent"
 	FLAG_ISSUE_PRIVATE_KEY_FILE              = "private-key-file"
+	FLAG_ISSUE_BACKEND_CONFIG                = "backend-config"
 
 	FLAG_ISSUE_YUBIKEY_SLOT = "yubi-slot"
 	FLAG_ISSUE_YUBIKEY_PIN  = "yubi-pin"

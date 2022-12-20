@@ -42,7 +42,7 @@ func (c *VaultClient) Revoke(serial string) error {
 	return nil
 }
 
-func (c *VaultClient) issue(opts conf.IssueArguments) (*api.Secret, error) {
+func (c *VaultClient) issue(opts conf.Config) (*api.Secret, error) {
 	token, err := c.auth.Authenticate()
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
@@ -61,7 +61,7 @@ func (c *VaultClient) issue(opts conf.IssueArguments) (*api.Secret, error) {
 	return secret, nil
 }
 
-func buildIssueArgs(opts conf.IssueArguments) map[string]interface{} {
+func buildIssueArgs(opts conf.Config) map[string]interface{} {
 	data := map[string]interface{}{
 		"common_name": opts.CommonName,
 		"ttl":         opts.Ttl,
@@ -73,7 +73,7 @@ func buildIssueArgs(opts conf.IssueArguments) map[string]interface{} {
 	return data
 }
 
-func (c *VaultClient) sign(csr string, opts conf.SignArguments) (*api.Secret, error) {
+func (c *VaultClient) sign(csr string, opts conf.Config) (*api.Secret, error) {
 	token, err := c.auth.Authenticate()
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
@@ -95,7 +95,7 @@ func (c *VaultClient) sign(csr string, opts conf.SignArguments) (*api.Secret, er
 	return secret, nil
 }
 
-func buildSignArgs(csr string, opts conf.SignArguments) (map[string]interface{}, error) {
+func buildSignArgs(csr string, opts conf.Config) (map[string]interface{}, error) {
 	data := map[string]interface{}{
 		"csr":         csr,
 		"common_name": opts.CommonName,
@@ -131,7 +131,7 @@ func (c *VaultClient) Tidy() error {
 	return nil
 }
 
-func (c *VaultClient) Sign(csr string, opts conf.SignArguments) (*pki.Signature, error) {
+func (c *VaultClient) Sign(csr string, opts conf.Config) (*pki.Signature, error) {
 	secret, err := c.sign(csr, opts)
 	if err != nil {
 		return nil, err
@@ -148,7 +148,7 @@ func (c *VaultClient) Sign(csr string, opts conf.SignArguments) (*pki.Signature,
 	}, nil
 }
 
-func (c *VaultClient) Issue(opts conf.IssueArguments) (*pki.CertData, error) {
+func (c *VaultClient) Issue(opts conf.Config) (*pki.CertData, error) {
 	secret, err := c.issue(opts)
 	if err != nil {
 		return nil, err

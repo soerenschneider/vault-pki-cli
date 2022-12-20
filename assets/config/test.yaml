@@ -1,0 +1,11 @@
+vault_address: http://localhost:8200
+common_name: vault-pki.example.com
+vault_pki_role: my_role
+vault_mount_pki: pki_intermediate
+vault_mount_approle: approle
+vault_token: test
+ttl: 48h
+storage:
+  - key: file:///tmp/pki.key
+    cert: file:///tmp/cert.crt
+    ca: file:///tmp/ca.crt

@@ -1,6 +1,6 @@
 //go:build !yubikey
 
-package pods
+package storage
 
 import (
 	"github.com/pkg/errors"

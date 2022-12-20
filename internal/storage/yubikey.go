@@ -1,6 +1,6 @@
 //go:build yubikey
 
-package pods
+package storage
 
 import (
 	"errors"
@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-type YubikeyPod struct {
+type YubikeyStorage struct {
 	pin     string
 	slot    piv.Slot
 	yubikey *piv.YubiKey
 }
 
-func NewYubikeyPod(slot uint32, pin string) (*YubikeyPod, error) {
+func NewYubikeyPod(slot uint32, pin string) (*YubikeyStorage, error) {
 	keySlot, err := translateSlot(slot)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func NewYubikeyPod(slot uint32, pin string) (*YubikeyPod, error) {
 			if yk, err = piv.Open(card); err != nil {
 				return nil, err
 			}
-			return &YubikeyPod{
+			return &YubikeyStorage{
 				pin:     pin,
 				slot:    *keySlot,
 				yubikey: yk,
@@ -51,7 +51,7 @@ func NewYubikeyPod(slot uint32, pin string) (*YubikeyPod, error) {
 	return nil, errors.New("no cards found")
 }
 
-func (pod *YubikeyPod) getManagementKey() (*[24]byte, error) {
+func (pod *YubikeyStorage) getManagementKey() (*[24]byte, error) {
 	m, err := pod.yubikey.Metadata(pod.pin)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func verifyPin(pin string) error {
 	return nil
 }
 
-func (pod *YubikeyPod) Read() ([]byte, error) {
+func (pod *YubikeyStorage) Read() ([]byte, error) {
 	cert, err := pod.yubikey.Certificate(piv.SlotAuthentication)
 	if err != nil {
 		return nil, err
@@ -98,12 +98,12 @@ func (pod *YubikeyPod) Read() ([]byte, error) {
 	return cert.Raw, nil
 }
 
-func (pod *YubikeyPod) CanRead() error {
+func (pod *YubikeyStorage) CanRead() error {
 	_, err := pod.yubikey.Certificate(piv.SlotAuthentication)
 	return err
 }
 
-func (pod *YubikeyPod) Write(data []byte) error {
+func (pod *YubikeyStorage) Write(data []byte) error {
 	managementKey, err := pod.getManagementKey()
 	if err != nil {
 		return err
@@ -126,7 +126,7 @@ func (pod *YubikeyPod) Write(data []byte) error {
 	})
 }
 
-func (pod *YubikeyPod) CanWrite() error {
+func (pod *YubikeyStorage) CanWrite() error {
 	_, err := pod.getManagementKey()
 	return err
 }

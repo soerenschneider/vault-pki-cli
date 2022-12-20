@@ -108,11 +108,11 @@ GARBAGE
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseCertPem(tt.data)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Read() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ReadCert() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Read() got = %v, want %v", got, tt.want)
+				t.Errorf("ReadCert() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
