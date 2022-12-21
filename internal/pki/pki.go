@@ -25,10 +25,10 @@ const (
 
 type Pki interface {
 	// Issue issues a new certificate from the PKI
-	Issue(opts conf.Config) (*CertData, error)
+	Issue(opts *conf.Config) (*CertData, error)
 
 	// Sign signs a CSR
-	Sign(csr string, opts conf.Config) (*Signature, error)
+	Sign(csr string, opts *conf.Config) (*Signature, error)
 
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
@@ -43,15 +43,15 @@ type Pki interface {
 type CertData struct {
 	PrivateKey  []byte
 	Certificate []byte
-	CaChain     []byte
+	CaData      []byte
 	Csr         []byte
 }
 
 func (certData *CertData) AsContainer() string {
 	var buffer strings.Builder
 
-	if certData.HasCaChain() {
-		buffer.Write(certData.CaChain)
+	if certData.HasCaData() {
+		buffer.Write(certData.CaData)
 		buffer.Write([]byte("\n"))
 	}
 
@@ -74,14 +74,18 @@ func (cert *CertData) HasCertificate() bool {
 	return len(cert.Certificate) > 0
 }
 
-func (cert *CertData) HasCaChain() bool {
-	return len(cert.CaChain) > 0
+func (cert *CertData) HasCaData() bool {
+	return len(cert.CaData) > 0
 }
 
 type Signature struct {
 	Certificate []byte
-	CaChain     []byte
+	CaData      []byte
 	Serial      string
+}
+
+func (cert *Signature) HasCaData() bool {
+	return len(cert.CaData) > 0
 }
 
 type PkiCli struct {
@@ -157,7 +161,7 @@ func (p *PkiCli) cleanup() {
 	}
 }
 
-func (p *PkiCli) Issue(format IssueSink, opts conf.Config) (IssueOutcome, error) {
+func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error) {
 	defer p.cleanup()
 	certData, err := format.ReadCert()
 	if err == nil && certData != nil {
@@ -196,7 +200,7 @@ func (p *PkiCli) Issue(format IssueSink, opts conf.Config) (IssueOutcome, error)
 	return Issued, nil
 }
 
-func (p *PkiCli) Sign(sink CsrSink, opts conf.Config) error {
+func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
 	defer p.cleanup()
 
 	csr, err := sink.ReadCsr()
@@ -221,7 +225,7 @@ func (p *PkiCli) Sign(sink CsrSink, opts conf.Config) error {
 		updateCertificateMetrics(x509Cert)
 	}
 
-	err = sink.WriteCert(resp.Certificate)
+	err = sink.WriteSignature(resp)
 	if err != nil {
 		return fmt.Errorf("could not write certificate file to backend: %v", err)
 	}

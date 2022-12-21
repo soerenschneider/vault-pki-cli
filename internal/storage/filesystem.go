@@ -26,6 +26,10 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 		return nil, err
 	}
 
+	if len(parsed.Host) > 0 {
+		return nil, fmt.Errorf("invalid syntax for uri, no host expected: '%s' (did you forget the leading '/'?)", uri)
+	}
+
 	path := parsed.Path
 
 	var username, pass string

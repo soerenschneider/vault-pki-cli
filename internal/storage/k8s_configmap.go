@@ -13,16 +13,23 @@ const K8sConfigMapScheme = "k8s-cm"
 
 type K8sConfigmapStorage struct {
 	*K8sConfig
+	client *kubernetes.Clientset
 }
 
-func NewK8sConfigmapStorageFromUri(uri string) (*K8sConfigmapStorage, error) {
+func NewK8sConfigmapStorageFromUri(uri string, context *buildContext) (*K8sConfigmapStorage, error) {
 	conf, err := K8sConfigFromUri(uri)
 	if err != nil {
 		return nil, err
 	}
 
+	client, err := context.KubernetesClient()
+	if err != nil {
+		return nil, fmt.Errorf("could not build kubernetes client: %v", err)
+	}
+
 	return &K8sConfigmapStorage{
-		conf,
+		K8sConfig: conf,
+		client:    client,
 	}, nil
 }
 

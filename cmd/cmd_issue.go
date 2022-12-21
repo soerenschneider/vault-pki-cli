@@ -3,11 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	sink2 "github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/spf13/viper"
 	"math/rand"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -28,14 +27,13 @@ func getIssueCmd() *cobra.Command {
 	var issueCmd = &cobra.Command{
 		Use:   "issue",
 		Short: "Issue a x509 cert",
-		Run:   issueCertEntryPoint,
+		RunE:  issueCertEntryPoint,
 	}
 
 	issueCmd.Flags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
 	issueCmd.Flags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_TTL, "", conf.FLAG_ISSUE_TTL_DEFAULT, "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
-	issueCmd.Flags().StringP(conf.FLAG_CONFIG_FILE, "", "", "Config.")
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
 	issueCmd.Flags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	issueCmd.Flags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
@@ -52,56 +50,9 @@ func getIssueCmd() *cobra.Command {
 	return issueCmd
 }
 
-func buildIssuer(storageConfig []map[string]string) (pki.IssueSink, error) {
-	certId := "cert"
-	keyId := "key"
-	caId := "ca"
-
-	var certVal string
-	var keyVal string
-	var caVal string
-	for _, conf := range storageConfig {
-		val, ok := conf[certId]
-		if !ok {
-			return nil, fmt.Errorf("can not build storage, missing '%s' in storage configuration", certId)
-		}
-		certVal = val
-
-		val, ok = conf[keyId]
-		if !ok {
-			return nil, fmt.Errorf("can not build storage, missing '%s' in storage configuration", keyId)
-		}
-		keyVal = val
-
-		val, ok = conf[caId]
-		if ok {
-			caVal = val
-		}
-	}
-
-	certSink, err := storage.BuildFromUri(certVal)
-	if err != nil {
-		return nil, err
-	}
-
-	keySink, err := storage.BuildFromUri(keyVal)
-	if err != nil {
-		return nil, err
-	}
-
-	var caSink pki.StorageImplementation
-	if len(caVal) > 0 {
-		caSink, err = storage.BuildFromUri(caVal)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return sink2.NewPemSink(certSink, keySink, caSink)
-}
-
-func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
+func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	PrintVersionInfo()
+
 	config, err := config()
 	if err != nil {
 		log.Fatal().Err(err)
@@ -118,7 +69,8 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 		log.Fatal().Msgf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
 	}
 
-	errs := issueCert(*config)
+	storage.InitBuilder(config)
+	errs := issueCert(config)
 	if len(errs) > 0 {
 		log.Error().Msgf("issuing cert not successful, %v", errs)
 		internal.MetricSuccess.Set(0)
@@ -130,20 +82,21 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 		internal.WriteMetrics(config.MetricsFile)
 	}
 
-	if len(errs) == 0 {
-		os.Exit(0)
+	if len(errs) > 0 {
+		return fmt.Errorf("encountered errors: %v", errs)
 	}
-	os.Exit(1)
+
+	return nil
 }
 
-func issueCert(config conf.Config) (errors []error) {
-	vaultClient, err := api.NewClient(getVaultConfig(&config))
+func issueCert(config *conf.Config) (errors []error) {
+	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build vault client: %v", err))
 		return
 	}
 
-	authStrategy, err := buildAuthImpl(vaultClient, &config)
+	authStrategy, err := buildAuthImpl(vaultClient, config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build auth strategy: %v", err))
 		return
@@ -172,19 +125,19 @@ func issueCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	format, err := buildIssuer(config.StorageConfig)
+	sink, err := sink.KeyPairSinkFromConfig(config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("can't build certificate output: %v", err))
 		return
 	}
 
 	var serial string
-	x509cert, err := format.ReadCert()
+	x509cert, err := sink.ReadCert()
 	if err == nil {
 		serial = pkg.FormatSerial(x509cert.SerialNumber)
 	}
 
-	outcome, err := pkiImpl.Issue(format, config)
+	outcome, err := pkiImpl.Issue(sink, config)
 	if err != nil {
 		log.Error().Msgf("could not issue new certificate: %v", err)
 		errors = append(errors, err)
@@ -214,7 +167,7 @@ func issueCert(config conf.Config) (errors []error) {
 	return
 }
 
-func runPostIssueHooks(config conf.Config) (errs []error) {
+func runPostIssueHooks(config *conf.Config) (errs []error) {
 	for _, hook := range config.PostIssueHooks {
 		log.Info().Msgf("Running command '%s'", hook)
 		parsed := strings.Split(hook, " ")

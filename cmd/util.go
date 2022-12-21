@@ -47,7 +47,7 @@ func handleFetchedData(certData []byte, config conf.Config) {
 
 
 		//sink, err := buildOutput(config)
-		//sink.WriteCert(certData)
+		//sink.WriteSignature(certData)
 		//if err != nil {
 		//	log.Error().Msgf("Error writing cert: %v", err)
 		//	os.Exit(1)

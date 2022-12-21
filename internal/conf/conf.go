@@ -27,7 +27,7 @@ type Config struct {
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
 	PostIssueHooks                         []string `mapstructure:"post_hooks""`
-	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime_threshold_percent"`
+	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool
 }
@@ -40,7 +40,7 @@ func (c *Config) Print() {
 			log.Info().Msgf("%s=%v", val.Type().Field(i).Name, val.Field(i))
 		}
 	}
-	log.Info().Msg("End config values")
+	log.Info().Msg("---")
 }
 
 func (c *Config) Validate() []error {

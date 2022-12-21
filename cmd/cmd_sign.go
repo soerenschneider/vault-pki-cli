@@ -1,11 +1,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/soerenschneider/vault-pki-cli/internal"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
 
@@ -23,7 +23,7 @@ func getSignCmd() *cobra.Command {
 	var signCmd = &cobra.Command{
 		Use:   "sign",
 		Short: "Sign a CSR",
-		Run:   signCertEntryPoint,
+		RunE:  signCertEntryPoint,
 	}
 
 	signCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
@@ -43,7 +43,7 @@ func getSignCmd() *cobra.Command {
 	return signCmd
 }
 
-func signCertEntryPoint(ccmd *cobra.Command, args []string) {
+func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	PrintVersionInfo()
 
 	config, err := config()
@@ -51,9 +51,10 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) {
 		log.Fatal().Err(err)
 	}
 
-	errs := signCert(*config)
+	storage.InitBuilder(config)
+	errs := signCert(config)
 	if len(errs) > 0 {
-		log.Error().Msgf("signing CSR not successful, %v", err)
+		log.Error().Msgf("signing CSR not successful, %v", errs)
 		internal.MetricSuccess.Set(0)
 	} else {
 		internal.MetricSuccess.Set(1)
@@ -64,12 +65,12 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) {
 	}
 
 	if len(errs) == 0 {
-		os.Exit(0)
+		return fmt.Errorf("encountered errors: %v", errs)
 	}
-	os.Exit(1)
+	return nil
 }
 
-func signCert(config conf.Config) (errors []error) {
+func signCert(config *conf.Config) (errors []error) {
 	errors = append(config.Validate(), config.Validate()...)
 	if len(errors) > 0 {
 		fmtErrors := make([]string, len(errors))
@@ -80,13 +81,13 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	vaultClient, err := api.NewClient(getVaultConfig(&config))
+	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build vault client: %v", err))
 		return
 	}
 
-	authStrategy, err := buildAuthImpl(vaultClient, &config)
+	authStrategy, err := buildAuthImpl(vaultClient, config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build auth strategy: %v", err))
 		return
@@ -104,7 +105,7 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	sink, err := buildSignSink(config)
+	sink, err := sink.CsrSinkFromConfig(config.StorageConfig)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build sink: %v", err))
 		return
@@ -125,9 +126,4 @@ func signCert(config conf.Config) (errors []error) {
 	}
 
 	return
-}
-
-func buildSignSink(config conf.Config) (pki.CsrSink, error) {
-	// TODO:
-	return nil, errors.New("no sinks")
 }

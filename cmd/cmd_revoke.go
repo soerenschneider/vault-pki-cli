@@ -1,93 +1,76 @@
 package main
 
 import (
-	"errors"
+	"fmt"
+	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
+	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/spf13/cobra"
-	"os"
+	"strings"
 )
 
 func getRevokeCmd() *cobra.Command {
 	var revokeCmd = &cobra.Command{
 		Use:   "revoke",
 		Short: "Revoke a x509 cert",
-		Run:   revokeCertEntryPoint,
+		RunE:  revokeCertEntryPoint,
 	}
 
-	revokeCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Certificate to read serial from")
-
-	revokeCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	revokeCmd.Flags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Certificate to read serial from")
 
 	return revokeCmd
 }
 
-func revokeCertEntryPoint(ccmd *cobra.Command, args []string) {
-
+func revokeCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	PrintVersionInfo()
 	config, err := config()
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 
-	err = revokeCert(*config)
-	if err == nil {
-		os.Exit(0)
+	errors := append(config.Validate(), config.Validate()...)
+	if len(errors) > 0 {
+		fmtErrors := make([]string, len(errors))
+		for i, er := range errors {
+			fmtErrors[i] = fmt.Sprintf("\"%s\"", er)
+		}
+		return fmt.Errorf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
 	}
-	log.Error().Msgf("Error revoking cert: %v", err)
-	os.Exit(1)
-}
 
-func revokeCert(config conf.Config) error {
-	/*
-		errors := append(config.Validate(), config.Validate()...)
-		if len(errors) > 0 {
-			fmtErrors := make([]string, len(errors))
-			for i, er := range errors {
-				fmtErrors[i] = fmt.Sprintf("\"%s\"", er)
-			}
-			return fmt.Errorf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
-		}
+	storage.InitBuilder(config)
+	vaultClient, err := api.NewClient(getVaultConfig(config))
+	if err != nil {
+		return fmt.Errorf("could not build vault client: %v", err)
+	}
 
-		vaultClient, err := api.NewClient(getVaultConfig(&config))
-		if err != nil {
-			return fmt.Errorf("could not build vault client: %v", err)
-		}
+	authStrategy, err := buildAuthImpl(vaultClient, config)
+	if err != nil {
+		return fmt.Errorf("could not build auth strategy: %v", err)
+	}
 
-		authStrategy, err := buildAuthImpl(vaultClient, &config)
-		if err != nil {
-			return fmt.Errorf("could not build auth strategy: %v", err)
-		}
+	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
+	if err != nil {
+		return fmt.Errorf("could not build rotation client: %v", err)
+	}
 
-		vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-		if err != nil {
-			return fmt.Errorf("could not build rotation client: %v", err)
-		}
+	pkiImpl, err := pki.NewPki(vaultBackend, nil)
+	if err != nil {
+		return fmt.Errorf("could not build pki impl: %v", err)
+	}
 
-		pkiImpl, err := pki.NewPki(vaultBackend, nil)
-		if err != nil {
-			return fmt.Errorf("could not build pki impl: %v", err)
-		}
+	sink, err := sink.KeyPairSinkFromConfig(config)
 
-		sink, err := buildOutput(config)
+	content, err := sink.ReadCert()
+	if err != nil {
+		return fmt.Errorf("can not read certificate: %v", err)
+	}
 
-		content, err := sink.ReadCert()
-		if err != nil {
-			return fmt.Errorf("can not read certificate: %v", err)
-		}
+	serial := pkg.FormatSerial(content.SerialNumber)
+	return pkiImpl.Revoke(serial)
 
-		serial, err := pkg.GetFormattedSerial(content.Raw)
-		if err != nil {
-			return fmt.Errorf("could not read certificate serial number: %v", err)
-		}
-		return pkiImpl.Revoke(serial)
-
-	*/
-	return nil
-}
-
-func buildRevokeSink(config conf.Config) (pki.CrlSink, error) {
-	// TODO:
-	return nil, errors.New("no sinks")
 }

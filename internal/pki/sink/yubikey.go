@@ -22,8 +22,8 @@ func NewYubikeySink(pod *storage.YubikeyPod) (*YubikeyBackend, error) {
 func (f *YubikeyBackend) WriteCert(certData *pki.CertData) error {
 	var dataPortion []byte
 
-	if certData.HasCaChain() {
-		dataPortion = append(dataPortion, certData.CaChain...)
+	if certData.HasCaData() {
+		dataPortion = append(dataPortion, certData.CaData...)
 		dataPortion = append(dataPortion, []byte("\n")...)
 	}
 
