@@ -2,7 +2,6 @@ package storage
 
 import (
 	"errors"
-	"k8s.io/client-go/kubernetes"
 	"net/url"
 	"strings"
 )
@@ -10,7 +9,6 @@ import (
 type K8sConfig struct {
 	Namespace string
 	Name      string
-	client    *kubernetes.Clientset
 }
 
 type K8sOption func(sink *K8sConfig)

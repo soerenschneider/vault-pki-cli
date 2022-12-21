@@ -8,4 +8,4 @@ ttl: 48h
 storage:
   - key: file:///tmp/pki.key
     cert: file:///tmp/cert.crt
-    ca: file:///tmp/ca.crt
+    aca: file:///tmp/ca.crt

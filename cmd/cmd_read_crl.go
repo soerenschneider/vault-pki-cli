@@ -1,28 +1,31 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func readCrlCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-crl",
 		Short: "ReadCert pki crl from vault",
-		Run:   readCrlEntryPoint,
+		RunE:  readCrlEntryPoint,
 	}
 
-	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteCert CRL to this file")
+	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature CRL to this file")
 	getCaCmd.PersistentFlags().BoolP(conf.FLAG_DER_ENCODED, "d", false, "Use DER encoding")
 	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
 	return getCaCmd
 }
 
-func readCrlEntryPoint(ccmd *cobra.Command, args []string) {
+func readCrlEntryPoint(ccmd *cobra.Command, args []string) error {
 	PrintVersionInfo()
 	config, err := config()
 	if err != nil {
@@ -30,19 +33,23 @@ func readCrlEntryPoint(ccmd *cobra.Command, args []string) {
 	}
 
 	if len(config.VaultAddress) == 0 {
-		log.Error().Msg("Missing vault address, quitting")
-		os.Exit(1)
+		return errors.New("missing vault address, quitting")
 	}
 
 	if len(config.VaultMountPki) == 0 {
-		log.Error().Msg("Missing vault pki mount, quitting")
-		os.Exit(1)
+		return errors.New("missing vault pki mount, quitting")
 	}
 
+	storage.InitBuilder(config)
 	crlData, err := vault.FetchCrl(config.VaultAddress, config.VaultMountPki, config.DerEncoded)
 	if err != nil {
-		os.Exit(1)
+		return fmt.Errorf("could not fetch crl from vault: %v", err)
 	}
 
-	handleFetchedData(crlData, *config)
+	sink, err := sink.CrlSinkFromConfig(config.StorageConfig)
+	if err != nil {
+		return fmt.Errorf("could not build crl sink from config: %v", err)
+	}
+
+	return sink.WriteCrl(crlData)
 }

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/spf13/cobra"
 	"os"
@@ -12,16 +15,16 @@ func readCaChainCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-ca-chain",
 		Short: "ReadCert pki ca cert chain from vault",
-		Run:   fetchCaChainEntryPoint,
+		RunE:  fetchCaChainEntryPoint,
 	}
 
-	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteCert ca certificate chain to this file")
+	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature ca certificate chain to this file")
 	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
 
 	return getCaCmd
 }
 
-func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
+func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) error {
 
 	PrintVersionInfo()
 	config, err := config()
@@ -30,19 +33,24 @@ func fetchCaChainEntryPoint(ccmd *cobra.Command, args []string) {
 	}
 
 	if len(config.VaultAddress) == 0 {
-		log.Error().Msg("Missing vault address, quitting")
-		os.Exit(1)
+		return errors.New("missing vault address, quitting")
 	}
 
 	if len(config.VaultMountPki) == 0 {
-		log.Error().Msg("Missing vault pki mount, quitting")
-		os.Exit(1)
+		return errors.New("missing vault pki mount, quitting")
 	}
 
+	storage.InitBuilder(config)
 	certData, err := vault.FetchCertChain(config.VaultAddress, config.VaultMountPki)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	handleFetchedData(certData, *config)
+	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
+	if err != nil {
+		log.Error().Msgf("could not build ca sink from config: %v", err)
+		return err
+	}
+
+	return sink.WriteCa(certData)
 }

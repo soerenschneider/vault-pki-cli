@@ -48,6 +48,17 @@ func main() {
 		},
 	}
 
+	root.PersistentFlags().BoolP("debug", "v", false, "Enable debug logging")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_ADDRESS, "a", "", "Vault instance to connect to. If not specified, falls back to env var VAULT_ADDR.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_TOKEN, "t", "", "Vault token to use for authentication. Can not be used in conjunction with AppRole login data.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_ROLE_ID, "r", "", "Vault role_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_SECRET_ID, "s", "", "Vault secret_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_SECRET_ID_FILE, "", "", "Flat file to read Vault secret_id from. Can not be used in conjuction with Vault token flag.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_MOUNT_PKI, "", conf.FLAG_VAULT_MOUNT_PKI_DEFAULT, "Path where the PKI secret engine is mounted.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_MOUNT_APPROLE, "", conf.FLAG_VAULT_MOUNT_APPROLE_DEFAULT, "Path where the AppRole auth method is mounted.")
+	root.PersistentFlags().StringP(conf.FLAG_VAULT_PKI_BACKEND_ROLE, "", conf.FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT, "The name of the PKI role backend.")
+	root.PersistentFlags().StringP(conf.FLAG_CONFIG_FILE, "", "", "Config.")
+
 	root.AddCommand(getRevokeCmd())
 	root.AddCommand(getIssueCmd())
 	root.AddCommand(getSignCmd())
@@ -55,16 +66,6 @@ func main() {
 	root.AddCommand(readCaChainCmd())
 	root.AddCommand(readCrlCmd())
 	root.AddCommand(versionCmd)
-
-	root.Flags().BoolP("debug", "v", false, "Enable debug logging")
-	root.Flags().StringP(conf.FLAG_VAULT_ADDRESS, "a", "", "Vault instance to connect to. If not specified, falls back to env var VAULT_ADDR.")
-	root.Flags().StringP(conf.FLAG_VAULT_TOKEN, "t", "", "Vault token to use for authentication. Can not be used in conjunction with AppRole login data.")
-	root.Flags().StringP(conf.FLAG_VAULT_ROLE_ID, "r", "", "Vault role_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")
-	root.Flags().StringP(conf.FLAG_VAULT_SECRET_ID, "s", "", "Vault secret_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")
-	root.Flags().StringP(conf.FLAG_VAULT_SECRET_ID_FILE, "", "", "Flat file to read Vault secret_id from. Can not be used in conjuction with Vault token flag.")
-	root.Flags().StringP(conf.FLAG_VAULT_MOUNT_PKI, "", conf.FLAG_VAULT_MOUNT_PKI_DEFAULT, "Path where the PKI secret engine is mounted.")
-	root.Flags().StringP(conf.FLAG_VAULT_MOUNT_APPROLE, "", conf.FLAG_VAULT_MOUNT_APPROLE_DEFAULT, "Path where the AppRole auth method is mounted.")
-	root.Flags().StringP(conf.FLAG_VAULT_PKI_BACKEND_ROLE, "", conf.FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT, "The name of the PKI role backend.")
 
 	if err := root.Execute(); err != nil {
 		fmt.Println(err)
