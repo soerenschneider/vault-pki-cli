@@ -157,7 +157,7 @@ func (p *PkiCli) cleanup() {
 	}
 }
 
-func (p *PkiCli) Issue(format CertBackend, opts conf.IssueArguments) (IssueOutcome, error) {
+func (p *PkiCli) Issue(format CertSink, opts conf.IssueArguments) (IssueOutcome, error) {
 	defer p.cleanup()
 	certData, err := format.Read()
 	if err == nil && certData != nil {

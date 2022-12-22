@@ -2,24 +2,49 @@ package conf
 
 import (
 	"fmt"
-
 	log "github.com/rs/zerolog/log"
 )
 
 type Config struct {
-	VaultAddress      string
-	VaultToken        string
-	VaultRoleId       string
-	VaultSecretId     string
-	VaultSecretIdFile string
-	VaultMountPki     string
-	VaultMountApprole string
-	VaultPkiRole      string
+	VaultAddress      string `mapstructure:"vault_address"`
+	VaultToken        string `mapstructure:"vault_token"`
+	VaultRoleId       string `mapstructure:"vault_role_id"`
+	VaultSecretId     string `mapstructure:"vault_secret_id"`
+	VaultSecretIdFile string `mapstructure:"vault_secret_id_file"`
+	VaultMountPki     string `mapstructure:"vault_mount_pki"`
+	VaultMountApprole string `mapstructure:"vault_mount_approle"`
+	VaultPkiRole      string `mapstructure:"vault_pki_role"`
 
-	SignArguments
-	IssueArguments
-	RevokeArguments
-	FetchArguments
+	SignArguments   `mapstructure:"sign"`
+	IssueArguments  `mapstructure:"issue"`
+	RevokeArguments `mapstructure:"revoke"`
+	FetchArguments  `mapstructure:"fetch"`
+}
+
+func NewDefaultConfig() Config {
+	return Config{
+		VaultMountPki:     FLAG_VAULT_MOUNT_PKI_DEFAULT,
+		VaultMountApprole: FLAG_VAULT_MOUNT_APPROLE_DEFAULT,
+		VaultPkiRole:      FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT,
+
+		SignArguments: SignArguments{
+			Ttl:         FLAG_ISSUE_TTL_DEFAULT,
+			FileOwner:   FLAG_FILE_OWNER_DEFAULT,
+			MetricsFile: FLAG_ISSUE_METRICS_FILE_DEFAULT,
+		},
+
+		IssueArguments: IssueArguments{
+			Ttl:                                    FLAG_ISSUE_TTL_DEFAULT,
+			CertificateLifetimeThresholdPercentage: FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT,
+			MetricsFile:                            FLAG_ISSUE_METRICS_FILE_DEFAULT,
+		},
+
+		RevokeArguments: RevokeArguments{},
+
+		FetchArguments: FetchArguments{
+			DerEncoded: false,
+		},
+	}
 }
 
 func (c *Config) Validate() []error {

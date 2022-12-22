@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/soerenschneider/vault-pki-cli/internal/backends"
-	"math"
+	"github.com/soerenschneider/vault-pki-cli/internal/conf/issue_sinks"
+	"github.com/soerenschneider/vault-pki-cli/internal/pods"
+	"github.com/soerenschneider/vault-pki-cli/internal/sink"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -14,7 +15,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pods"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
@@ -37,33 +37,23 @@ func getIssueCmd() *cobra.Command {
 			viper.BindPFlag(conf.FLAG_FILE_OWNER, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_OWNER))
 			viper.BindPFlag(conf.FLAG_FILE_GROUP, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_GROUP))
 
-			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
-			viper.BindPFlag(conf.FLAG_CA_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CA_FILE))
-			viper.BindPFlag(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_PRIVATE_KEY_FILE))
-			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_SLOT, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_SLOT))
-			viper.BindPFlag(conf.FLAG_ISSUE_YUBIKEY_PIN, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_YUBIKEY_PIN))
 			viper.BindPFlag(conf.FLAG_ISSUE_COMMON_NAME, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_COMMON_NAME))
 			viper.BindPFlag(conf.FLAG_ISSUE_TTL, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_TTL))
 			viper.BindPFlag(conf.FLAG_ISSUE_METRICS_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_METRICS_FILE))
 			viper.BindPFlag(conf.FLAG_ISSUE_IP_SANS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_IP_SANS))
 			viper.BindPFlag(conf.FLAG_ISSUE_ALT_NAMES, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_ALT_NAMES))
 			viper.BindPFlag(conf.FLAG_ISSUE_HOOKS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_HOOKS))
+			viper.BindPFlag(conf.FLAG_CONFIG_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CONFIG_FILE))
 
-			return initializeConfig(cmd)
+			return nil
 		},
 	}
 
 	issueCmd.PersistentFlags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
 	issueCmd.PersistentFlags().Float64P(conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE, "", conf.FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT, "Create new certificate when a given threshold of its overall lifetime has been reached")
-	issueCmd.PersistentFlags().Uint32(conf.FLAG_ISSUE_YUBIKEY_SLOT, math.MaxUint32, "Yubikey slot to write x509 data to")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_YUBIKEY_PIN, "", "", "PIN to access to Yubikey PIV")
-	issueCmd.PersistentFlags().StringSliceP(conf.FLAG_CERTIFICATE_FILE, "c", []string{}, "File to write the certificate to")
-	issueCmd.PersistentFlags().StringSliceP(conf.FLAG_ISSUE_PRIVATE_KEY_FILE, "p", []string{}, "File to write the private key to")
-	issueCmd.PersistentFlags().StringSlice(conf.FLAG_CA_FILE, []string{}, "File to write the CA certificate to")
-	issueCmd.PersistentFlags().StringSlice(conf.FLAG_FILE_OWNER, []string{}, "Owner of the written files")
-	issueCmd.PersistentFlags().StringSlice(conf.FLAG_FILE_GROUP, []string{}, "Group of the written files")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
-	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", conf.FLAG_ISSUE_TTL_DEFAULT, "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
+	issueCmd.PersistentFlags().StringP(conf.FLAG_CONFIG_FILE, "", "", "Config.")
 	issueCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	issueCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
@@ -77,22 +67,32 @@ func getIssueCmd() *cobra.Command {
 func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 	PrintVersionInfo()
 
+	viper.SetConfigType("yaml")
 	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
+	var config *conf.Config
 	if len(configFile) > 0 {
-		err := readConfig(configFile)
+		var err error
+		config, err = readConfig(configFile)
 		if err != nil {
 			log.Fatal().Msgf("Could not load desired config file: %s: %v", configFile, err)
 		}
 		log.Info().Msgf("Read config from file %s", viper.ConfigFileUsed())
 	}
+	conf.ParseFlags(config)
 
-	config := NewConfigFromViper()
+	err := config.BuildBackends()
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not build all sink")
+	}
+
+	config.Validate()
+
 	config.PrintConfig()
 	config.IssueArguments.PrintConfig()
 
-	err := issueCert(config)
-	if len(err) > 0 {
-		log.Error().Msgf("issuing cert not successful, %v", err)
+	errs := issueCert(*config)
+	if len(errs) > 0 {
+		log.Error().Msgf("issuing cert not successful, %v", errs)
 		internal.MetricSuccess.Set(0)
 	} else {
 		internal.MetricSuccess.Set(1)
@@ -102,7 +102,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) {
 		internal.WriteMetrics(config.IssueArguments.MetricsFile)
 	}
 
-	if len(err) == 0 {
+	if len(errs) == 0 {
 		os.Exit(0)
 	}
 	os.Exit(1)
@@ -196,52 +196,68 @@ func issueCert(config conf.Config) (errors []error) {
 	return
 }
 
-func buildOutput(config conf.Config) (pki.CertBackend, error) {
-	if config.UsesYubikey() {
-		log.Info().Msg("Building yubikey backend to write cert data to")
-		return buildYubikeyBackend(config)
-	} else {
-		log.Info().Msg("Building pem backend to write cert data to")
-		return buildPemBackend(config)
-	}
+func buildOutput(config conf.Config) (pki.CertSink, error) {
+	var builtSinks []pki.CertSink
 
-	return nil, errors.New("can't decide which backend to build")
-}
-
-func buildPemBackend(config conf.Config) (pki.CertBackend, error) {
-	var pemBackends []pki.CertBackend
 	for _, backend := range config.Backends {
-
-		privateKeyPod, err := pods.NewFsPod(backend.PrivateKeyFile, backend.FileOwner, backend.FileGroup)
-		if err != nil {
-			return nil, fmt.Errorf("could not init private-key-file: %v", err)
-		}
-
-		certPod, err := pods.NewFsPod(backend.CertificateFile, backend.FileOwner, backend.FileGroup)
-		if err != nil {
-			return nil, fmt.Errorf("could not init cert-file: %v", err)
-		}
-
-		var caPod pki.KeyPod
-		if len(backend.CaFile) > 0 {
-			var err error
-			caPod, err = pods.NewFsPod(backend.CaFile, backend.FileOwner, backend.FileGroup)
+		switch backend.GetType() {
+		case issue_sinks.FsType:
+			sink, err := buildPemBackend(backend.(*issue_sinks.FilesystemSink))
 			if err != nil {
-				return nil, fmt.Errorf("could not init ca-file: %v", err)
+				return nil, fmt.Errorf("could not build pem sink: %v", err)
 			}
+			builtSinks = append(builtSinks, sink)
+		case issue_sinks.K8sType:
+			sink, err := buildK8sBackend(backend.(*issue_sinks.K8sSink))
+			if err != nil {
+				return nil, fmt.Errorf("could not build k8s sink: %v", err)
+			}
+			builtSinks = append(builtSinks, sink)
+		case issue_sinks.YubiType:
+			sink, err := buildYubikeyBackend(backend.(*issue_sinks.YubikeySink))
+			if err != nil {
+				return nil, fmt.Errorf("could not build yubi sink: %v", err)
+			}
+			builtSinks = append(builtSinks, sink)
+		default:
+			return nil, fmt.Errorf("unknown sink requested: %s", backend.GetType())
 		}
-		pamBackend, err := backends.NewPemBackend(certPod, privateKeyPod, caPod)
-		if err != nil {
-			return nil, err
-		}
-		pemBackends = append(pemBackends, pamBackend)
 	}
 
-	return backends.NewMultiBackend(pemBackends...)
+	return sink.NewMultiSink(builtSinks...)
 }
 
-func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {
-	pin := config.YubikeyPin
+func buildK8sBackend(sinkConfig *issue_sinks.K8sSink) (pki.CertSink, error) {
+	return sink.NewK8sBackend(
+		sink.WithNamespace(sinkConfig.Namespace),
+		sink.WithSecretName(sinkConfig.SecretName),
+	)
+}
+
+func buildPemBackend(sinkConfig *issue_sinks.FilesystemSink) (pki.CertSink, error) {
+	privateKeyPod, err := pods.NewFsPod(sinkConfig.PrivateKeyFile, sinkConfig.FileOwner, sinkConfig.FileGroup)
+	if err != nil {
+		return nil, fmt.Errorf("could not init private-key-file: %v", err)
+	}
+
+	certPod, err := pods.NewFsPod(sinkConfig.CertificateFile, sinkConfig.FileOwner, sinkConfig.FileGroup)
+	if err != nil {
+		return nil, fmt.Errorf("could not init cert-file: %v", err)
+	}
+
+	var caPod pki.KeyPod
+	if len(sinkConfig.CaFile) > 0 {
+		var err error
+		caPod, err = pods.NewFsPod(sinkConfig.CaFile, sinkConfig.FileOwner, sinkConfig.FileGroup)
+		if err != nil {
+			return nil, fmt.Errorf("could not init ca-file: %v", err)
+		}
+	}
+	return sink.NewPemSink(certPod, privateKeyPod, caPod)
+}
+
+func buildYubikeyBackend(sinkConfig *issue_sinks.YubikeySink) (pki.CertSink, error) {
+	pin := sinkConfig.YubikeyPin
 	if len(pin) == 0 {
 		var err error
 		pin, err = QueryYubikeyPin()
@@ -250,16 +266,18 @@ func buildYubikeyBackend(config conf.Config) (pki.CertBackend, error) {
 		}
 	}
 
-	yubikey, err := pods.NewYubikeyPod(config.YubikeySlot, pin)
+	yubikey, err := pods.NewYubikeyPod(sinkConfig.YubikeySlot, pin)
 	if err != nil {
 		return nil, fmt.Errorf("can't init yubikey: %v", err)
 	}
 
-	yubikeyBackend, err := backends.NewYubikeyBackend(yubikey)
+	yubikeyBackend, err := sink.NewYubikeySink(yubikey)
 	if err != nil {
 		return nil, fmt.Errorf("can't build yubikey backend: %v", err)
 	}
 	return yubikeyBackend, nil
+
+	return nil, errors.New("todo")
 }
 
 func runPostIssueHooks(config conf.Config) (errs []error) {

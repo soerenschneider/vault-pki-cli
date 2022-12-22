@@ -4,8 +4,8 @@ import (
 	"crypto/x509"
 )
 
-// CertBackend defines pluggable backends to write certificate data to.
-type CertBackend interface {
+// CertSink defines pluggable sink to write certificate data to.
+type CertSink interface {
 	Write(cert *CertData) error
 	Read() (*x509.Certificate, error)
 }

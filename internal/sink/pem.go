@@ -1,4 +1,4 @@
-package backends
+package sink
 
 import (
 	"crypto/x509"
@@ -8,13 +8,13 @@ import (
 	"log"
 )
 
-type PemBackend struct {
+type PemSink struct {
 	ca         pki.KeyPod
 	cert       pki.KeyPod
 	privateKey pki.KeyPod
 }
 
-func NewPemBackend(cert, privateKey, chain pki.KeyPod) (*PemBackend, error) {
+func NewPemSink(cert, privateKey, chain pki.KeyPod) (*PemSink, error) {
 	if nil == cert {
 		return nil, errors.New("empty cert pod provided")
 	}
@@ -23,10 +23,10 @@ func NewPemBackend(cert, privateKey, chain pki.KeyPod) (*PemBackend, error) {
 		return nil, errors.New("empty private key pod provided")
 	}
 
-	return &PemBackend{cert: cert, privateKey: privateKey, ca: chain}, nil
+	return &PemSink{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
-func (f *PemBackend) Write(certData *pki.CertData) error {
+func (f *PemSink) Write(certData *pki.CertData) error {
 	if certData.HasCaChain() && f.ca != nil {
 		log.Println("--------------------------")
 		if err := f.ca.Write(append(certData.CaChain, "\n"...)); err != nil {
@@ -45,7 +45,7 @@ func (f *PemBackend) Write(certData *pki.CertData) error {
 	return nil
 }
 
-func (f *PemBackend) Read() (*x509.Certificate, error) {
+func (f *PemSink) Read() (*x509.Certificate, error) {
 	data, err := f.cert.Read()
 	if err != nil {
 		return nil, err

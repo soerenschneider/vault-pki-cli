@@ -1,4 +1,4 @@
-package backends
+package sink
 
 import (
 	"crypto/x509"
@@ -11,7 +11,7 @@ type YubikeyBackend struct {
 	yubikey pki.KeyPod
 }
 
-func NewYubikeyBackend(pod *pods.YubikeyPod) (*YubikeyBackend, error) {
+func NewYubikeySink(pod *pods.YubikeyPod) (*YubikeyBackend, error) {
 	if nil == pod {
 		return nil, errors.New("empty yubikey pod provided")
 	}

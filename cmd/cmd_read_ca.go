@@ -19,7 +19,7 @@ func readCaCmd() *cobra.Command {
 			viper.BindPFlag(conf.FLAG_OUTPUT_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_OUTPUT_FILE))
 			viper.BindPFlag(conf.FLAG_DER_ENCODED, cmd.PersistentFlags().Lookup(conf.FLAG_DER_ENCODED))
 
-			return initializeConfig(cmd)
+			return nil
 		},
 	}
 
@@ -31,19 +31,18 @@ func readCaCmd() *cobra.Command {
 }
 
 func readCaEntryPoint(ccmd *cobra.Command, args []string) {
-	initializeConfig(ccmd)
-
 	PrintVersionInfo()
 	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
+	var config *conf.Config
 	if len(configFile) > 0 {
-		err := readConfig(configFile)
+		var err error
+		config, err = readConfig(configFile)
 		if err != nil {
 			log.Fatal().Msgf("Could not load desired config file: %s: %v", configFile, err)
 		}
 		log.Info().Msgf("Read config from file %s", viper.ConfigFileUsed())
 	}
 
-	config := NewConfigFromViper()
 	if len(config.VaultAddress) == 0 {
 		log.Error().Msg("Missing vault address, quitting")
 		os.Exit(1)
@@ -60,5 +59,5 @@ func readCaEntryPoint(ccmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	handleFetchedData(certData, config)
+	handleFetchedData(certData, *config)
 }

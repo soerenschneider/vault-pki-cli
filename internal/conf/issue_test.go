@@ -16,7 +16,7 @@ func TestIssueArguments_Validate(t *testing.T) {
 				CommonName:                             "my.common.name",
 				CertificateLifetimeThresholdPercentage: 10.,
 				YubikeySlot:                            FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT,
-				Backends: []Backend{
+				Backends: []FsBackend{
 					{
 						PrivateKeyFile:  "/tmp/cert.key",
 						CertificateFile: "/tmp/cert.crt",

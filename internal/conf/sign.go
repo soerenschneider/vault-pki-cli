@@ -6,10 +6,10 @@ import (
 )
 
 type SignArguments struct {
-	CommonName string
-	Ttl        string
-	IpSans     []string
-	AltNames   []string
+	CommonName string   `mapstructure:"common_name"`
+	Ttl        string   `mapstructure:"ttl"`
+	IpSans     []string `mapstructure:"ip_sans"`
+	AltNames   []string `mapstructure:"alt_names"`
 
 	CsrFile         string
 	CertificateFile string

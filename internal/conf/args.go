@@ -1,7 +1,7 @@
 package conf
 
 const (
-	FLAG_CONFIG_FILE = "config-file"
+	FLAG_CONFIG_FILE = "config"
 
 	FLAG_VAULT_ADDRESS          = "vault-address"
 	FLAG_VAULT_TOKEN            = "vault-token"
