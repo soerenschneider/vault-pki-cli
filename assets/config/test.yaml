@@ -3,7 +3,7 @@ common_name: vault-pki.example.com
 vault_pki_role: my_role
 vault_mount_pki: pki_intermediate
 vault_mount_approle: approle
-vault_token: test
+vault_token: vault-pki-cli
 ttl: 48h
 storage:
   - key: file:///tmp/pki.key

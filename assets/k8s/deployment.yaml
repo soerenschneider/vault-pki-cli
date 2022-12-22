@@ -15,6 +15,7 @@ spec:
       labels:
         app: vault-pki-cli
     spec:
+      serviceAccountName: vault-pki-cli
       containers:
         - image: ghcr.io/soerenschneider/vault-pki-cli:9d5b45befb185c0853ed9ac777579d9872de3cbf0db9930abe1493a1126ce581
           name: vault-pki-cli

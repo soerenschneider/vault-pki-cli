@@ -48,21 +48,21 @@ func NewK8sConfigmapStorage(client *kubernetes.Clientset, name string, opts ...K
 }
 
 func (fs *K8sConfigmapStorage) Read() ([]byte, error) {
-	secret, err := fs.client.CoreV1().Secrets(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
+	configMap, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	cert, ok := secret.Data[keyCert]
+	cert, ok := configMap.Data[keyCert]
 	if !ok {
-		return nil, fmt.Errorf("kubernetes secret '%s' does not contain a certifcate", fs.Name)
+		return nil, fmt.Errorf("kubernetes configMap '%s' does not contain a certifcate", fs.Name)
 	}
 
-	return cert, nil
+	return []byte(cert), nil
 }
 
 func (fs *K8sConfigmapStorage) CanRead() error {
-	_, err := fs.client.CoreV1().Secrets(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
+	_, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (fs *K8sConfigmapStorage) CanRead() error {
 }
 
 func (fs *K8sConfigmapStorage) Write(data []byte) error {
-	secret := &v1.ConfigMap{
+	configmap := &v1.ConfigMap{
 		ObjectMeta: meta.ObjectMeta{
 			Name: fs.Name,
 			Labels: map[string]string{
@@ -79,11 +79,16 @@ func (fs *K8sConfigmapStorage) Write(data []byte) error {
 			},
 		},
 		Data: map[string]string{
-			"data": string(data),
+			keyCert: string(data),
 		},
 	}
 
-	_, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Create(context.TODO(), secret, meta.CreateOptions{})
+	if fs.CanRead() == nil {
+		_, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Update(context.TODO(), configmap, meta.UpdateOptions{})
+		return err
+	}
+
+	_, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Create(context.TODO(), configmap, meta.CreateOptions{})
 	return err
 }
 

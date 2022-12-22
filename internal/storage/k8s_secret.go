@@ -58,7 +58,7 @@ func (fs *K8sSecretStorage) Read() ([]byte, error) {
 		return nil, err
 	}
 
-	cert, ok := secret.Data[keyCert]
+	cert, ok := secret.Data[keyPrivateKey]
 	if !ok {
 		return nil, fmt.Errorf("kubernetes secret '%s' does not contain a certifcate", fs.Name)
 	}
@@ -92,8 +92,13 @@ func (fs *K8sSecretStorage) Write(data []byte) error {
 			},
 		},
 		StringData: map[string]string{
-			"data": string(data),
+			keyPrivateKey: string(data),
 		},
+	}
+
+	if fs.CanRead() == nil {
+		_, err := fs.client.CoreV1().Secrets(fs.Namespace).Update(context.TODO(), secret, meta.UpdateOptions{})
+		return err
 	}
 
 	_, err := fs.client.CoreV1().Secrets(fs.Namespace).Create(context.TODO(), secret, meta.CreateOptions{})

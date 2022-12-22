@@ -174,7 +174,7 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 			log.Error().Msgf("Got error while deciding whether to renew certificate, proceeding to renew: %v", err)
 		}
 	}
-
+	log.Info().Msgf("Could not read certificate: %v", err)
 	log.Info().Msg("Issuing new certificate")
 	cert, err := p.pkiImpl.Issue(opts)
 	if err != nil {
