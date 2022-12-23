@@ -2,24 +2,45 @@ package conf
 
 import (
 	"fmt"
-
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
+	"reflect"
 )
 
 type Config struct {
-	VaultAddress      string
-	VaultToken        string
-	VaultRoleId       string
-	VaultSecretId     string
-	VaultSecretIdFile string
-	VaultMountPki     string
-	VaultMountApprole string
-	VaultPkiRole      string
+	VaultAddress      string `mapstructure:"vault_address"`
+	VaultToken        string `mapstructure:"vault_token"`
+	VaultRoleId       string `mapstructure:"vault_role_id"`
+	VaultSecretId     string `mapstructure:"vault_secret_id"`
+	VaultSecretIdFile string `mapstructure:"vault_secret_id_file"`
+	VaultMountPki     string `mapstructure:"vault_mount_pki"`
+	VaultMountApprole string `mapstructure:"vault_mount_approle"`
+	VaultPkiRole      string `mapstructure:"vault_pki_role"`
 
-	SignArguments
-	IssueArguments
-	RevokeArguments
-	FetchArguments
+	CommonName string   `mapstructure:"common_name"`
+	Ttl        string   `mapstructure:"ttl"`
+	IpSans     []string `mapstructure:"ip_sans"`
+	AltNames   []string `mapstructure:"alt_names"`
+
+	MetricsFile string
+
+	ForceNewCertificate bool
+	StorageConfig       []map[string]string `mapstructure:"storage"`
+
+	PostIssueHooks                         []string `mapstructure:"post_hooks""`
+	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
+
+	DerEncoded bool
+}
+
+func (c *Config) Print() {
+	log.Info().Msg("Active config values")
+	val := reflect.ValueOf(c).Elem()
+	for i := 0; i < val.NumField(); i++ {
+		if !val.Field(i).IsZero() {
+			log.Info().Msgf("%s=%v", val.Type().Field(i).Name, val.Field(i))
+		}
+	}
+	log.Info().Msg("---")
 }
 
 func (c *Config) Validate() []error {
@@ -60,23 +81,16 @@ func (c *Config) Validate() []error {
 	return errs
 }
 
-func (c *Config) PrintConfig() {
-	log.Info().Msg("------------- Printing common config values -------------")
-	log.Info().Msgf("%s=%s", FLAG_VAULT_ADDRESS, c.VaultAddress)
-	if len(c.VaultToken) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_TOKEN)
-	}
-	if len(c.VaultRoleId) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_ROLE_ID)
-	}
-	if len(c.VaultSecretId) > 0 {
-		log.Info().Msgf("%s=*** (sensitive output)", FLAG_VAULT_SECRET_ID)
-	}
-	if len(c.VaultSecretIdFile) > 0 {
-		log.Info().Msgf("%s=%s", FLAG_VAULT_SECRET_ID_FILE, c.VaultSecretIdFile)
+func (c *Config) ValidateIssue() []error {
+	errs := c.Validate()
+
+	if len(c.CommonName) == 0 {
+		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
 	}
 
-	log.Info().Msgf("%s=%s", FLAG_VAULT_MOUNT_PKI, c.VaultMountPki)
-	log.Info().Msgf("%s=%s", FLAG_VAULT_MOUNT_APPROLE, c.VaultMountApprole)
-	log.Info().Msgf("%s=%s", FLAG_VAULT_PKI_BACKEND_ROLE, c.VaultPkiRole)
+	if c.CertificateLifetimeThresholdPercentage < 5 || c.CertificateLifetimeThresholdPercentage > 90 {
+		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
+	}
+
+	return errs
 }

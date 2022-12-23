@@ -1,7 +1,7 @@
 //go:build yubikey
 // +build yubikey
 
-package pods
+package storage
 
 import (
 	"github.com/go-piv/piv-go/piv"

@@ -1,0 +1,21 @@
+{
+  "issue": {
+    "backends": [
+      {
+        "type": "k8s",
+        "namespace": "bla",
+        "secret_name": "hu"
+      },
+      {
+        "type": "file",
+        "cert_file": "dei mudder",
+        "file_owner": "root"
+      },
+      {
+        "type": "file",
+        "cert_file": "dei vadder",
+        "file_owner": "soeren"
+      }
+    ]
+  }
+}

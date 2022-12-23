@@ -1,17 +1,17 @@
-package backends
+package sink
 
 import (
 	"crypto/x509"
 	"github.com/pkg/errors"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pods"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 )
 
 type YubikeyBackend struct {
-	yubikey pki.KeyPod
+	yubikey pki.StorageImplementation
 }
 
-func NewYubikeyBackend(pod *pods.YubikeyPod) (*YubikeyBackend, error) {
+func NewYubikeySink(pod *storage.YubikeyPod) (*YubikeyBackend, error) {
 	if nil == pod {
 		return nil, errors.New("empty yubikey pod provided")
 	}
@@ -19,11 +19,11 @@ func NewYubikeyBackend(pod *pods.YubikeyPod) (*YubikeyBackend, error) {
 	return &YubikeyBackend{yubikey: pod}, nil
 }
 
-func (f *YubikeyBackend) Write(certData *pki.CertData) error {
+func (f *YubikeyBackend) WriteCert(certData *pki.CertData) error {
 	var dataPortion []byte
 
-	if certData.HasCaChain() {
-		dataPortion = append(dataPortion, certData.CaChain...)
+	if certData.HasCaData() {
+		dataPortion = append(dataPortion, certData.CaData...)
 		dataPortion = append(dataPortion, []byte("\n")...)
 	}
 
@@ -37,7 +37,7 @@ func (f *YubikeyBackend) Write(certData *pki.CertData) error {
 	return f.yubikey.Write(dataPortion)
 }
 
-func (f *YubikeyBackend) Read() (*x509.Certificate, error) {
+func (f *YubikeyBackend) ReadCert() (*x509.Certificate, error) {
 	cert, err := f.yubikey.Read()
 	if err != nil {
 		return nil, err

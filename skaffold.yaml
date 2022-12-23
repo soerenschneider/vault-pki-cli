@@ -1,0 +1,12 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+metadata:
+  name: vault-pki-cli
+build:
+  artifacts:
+  - image: ghcr.io/soerenschneider/vault-pki-cli
+    docker:
+      dockerfile: Dockerfile
+manifests:
+  rawYaml:
+  - assets/k8s/deployment.yaml
