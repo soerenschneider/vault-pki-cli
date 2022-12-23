@@ -80,3 +80,17 @@ func (c *Config) Validate() []error {
 
 	return errs
 }
+
+func (c *Config) ValidateIssue() []error {
+	errs := c.Validate()
+
+	if len(c.CommonName) == 0 {
+		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
+	}
+
+	if c.CertificateLifetimeThresholdPercentage < 5 || c.CertificateLifetimeThresholdPercentage > 90 {
+		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
+	}
+
+	return errs
+}

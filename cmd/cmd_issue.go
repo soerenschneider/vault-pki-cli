@@ -60,7 +60,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 
 	config.Print()
 
-	errors := config.Validate()
+	errors := config.ValidateIssue()
 	if len(errors) > 0 {
 		fmtErrors := make([]string, len(errors))
 		for i, er := range errors {
