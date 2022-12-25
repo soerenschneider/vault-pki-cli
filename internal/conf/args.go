@@ -21,6 +21,7 @@ const (
 	FLAG_ISSUE_YUBIKEY_PIN  = "yubi-pin"
 
 	FLAG_ISSUE_TTL          = "ttl"
+	FLAG_ISSUE_DAEMONIZE    = "daemonize"
 	FLAG_ISSUE_IP_SANS      = "ip-sans"
 	FLAG_ISSUE_COMMON_NAME  = "common-name"
 	FLAG_ISSUE_ALT_NAMES    = "alt-names"

@@ -8,6 +8,7 @@ const (
 	FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE_DEFAULT = 33.
 	FLAG_ISSUE_TTL_DEFAULT                           = "48h"
 	FLAG_FILE_OWNER_DEFAULT                          = "root"
+	FLAG_ISSUE_DAEMONIZE_DEFAULT                     = false
 
 	FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT = math.MaxUint32
 
