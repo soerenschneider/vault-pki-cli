@@ -2,43 +2,28 @@ package main
 
 import (
 	"fmt"
+	"github.com/soerenschneider/vault-pki-cli/internal"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"math/rand"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pods"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
 
 	"github.com/hashicorp/vault/api"
 	log "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func getSignCmd() *cobra.Command {
 	var signCmd = &cobra.Command{
 		Use:   "sign",
 		Short: "Sign a CSR",
-		Run:   signCertEntryPoint,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// See https://github.com/spf13/viper/issues/233#issuecomment-386791444
-			viper.BindPFlag(conf.FLAG_CERTIFICATE_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CERTIFICATE_FILE))
-			viper.BindPFlag(conf.FLAG_CSR_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_CSR_FILE))
-			viper.BindPFlag(conf.FLAG_FILE_OWNER, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_OWNER))
-			viper.BindPFlag(conf.FLAG_FILE_GROUP, cmd.PersistentFlags().Lookup(conf.FLAG_FILE_GROUP))
-			viper.BindPFlag(conf.FLAG_ISSUE_COMMON_NAME, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_COMMON_NAME))
-			viper.BindPFlag(conf.FLAG_ISSUE_TTL, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_TTL))
-			viper.BindPFlag(conf.FLAG_ISSUE_METRICS_FILE, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_METRICS_FILE))
-			viper.BindPFlag(conf.FLAG_ISSUE_IP_SANS, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_IP_SANS))
-			viper.BindPFlag(conf.FLAG_ISSUE_ALT_NAMES, cmd.PersistentFlags().Lookup(conf.FLAG_ISSUE_ALT_NAMES))
-
-			return initializeConfig(cmd)
-		},
+		RunE:  signCertEntryPoint,
 	}
 
 	signCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
@@ -58,41 +43,35 @@ func getSignCmd() *cobra.Command {
 	return signCmd
 }
 
-func signCertEntryPoint(ccmd *cobra.Command, args []string) {
+func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	PrintVersionInfo()
-	configFile := viper.GetViper().GetString(conf.FLAG_CONFIG_FILE)
-	if len(configFile) > 0 {
-		err := readConfig(configFile)
-		if err != nil {
-			log.Fatal().Msgf("Could not load desired config file: %s: %v", configFile, err)
-		}
-		log.Info().Msgf("Read config from file %s", viper.ConfigFileUsed())
+
+	config, err := config()
+	if err != nil {
+		log.Fatal().Err(err)
 	}
 
-	config := NewConfigFromViper()
-	config.PrintConfig()
-	config.SignArguments.PrintConfig()
-
-	err := signCert(config)
-	if len(err) > 0 {
-		log.Error().Msgf("signing CSR not successful, %v", err)
+	storage.InitBuilder(config)
+	errs := signCert(config)
+	if len(errs) > 0 {
+		log.Error().Msgf("signing CSR not successful, %v", errs)
 		internal.MetricSuccess.Set(0)
 	} else {
 		internal.MetricSuccess.Set(1)
 	}
 	internal.MetricRunTimestamp.SetToCurrentTime()
-	if len(config.SignArguments.MetricsFile) > 0 {
-		internal.WriteMetrics(config.SignArguments.MetricsFile)
+	if len(config.MetricsFile) > 0 {
+		internal.WriteMetrics(config.MetricsFile)
 	}
 
-	if len(err) == 0 {
-		os.Exit(0)
+	if len(errs) == 0 {
+		return fmt.Errorf("encountered errors: %v", errs)
 	}
-	os.Exit(1)
+	return nil
 }
 
-func signCert(config conf.Config) (errors []error) {
-	errors = append(config.Validate(), config.SignArguments.Validate()...)
+func signCert(config *conf.Config) (errors []error) {
+	errors = append(config.Validate(), config.Validate()...)
 	if len(errors) > 0 {
 		fmtErrors := make([]string, len(errors))
 		for i, er := range errors {
@@ -102,13 +81,13 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	vaultClient, err := api.NewClient(getVaultConfig(&config))
+	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build vault client: %v", err))
 		return
 	}
 
-	authStrategy, err := buildAuthImpl(vaultClient, &config)
+	authStrategy, err := buildAuthImpl(vaultClient, config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("could not build auth strategy: %v", err))
 		return
@@ -126,18 +105,13 @@ func signCert(config conf.Config) (errors []error) {
 		return
 	}
 
-	csrPod, err := pods.NewFsPod(config.CsrFile, config.SignArguments.FileOwner, config.SignArguments.FileGroup)
+	sink, err := sink.CsrSinkFromConfig(config.StorageConfig)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not init private-key-file: %v", err))
-		return
-	}
-	certPod, err := pods.NewFsPod(config.SignArguments.CertificateFile, config.SignArguments.FileOwner, config.SignArguments.FileGroup)
-	if err != nil {
-		errors = append(errors, fmt.Errorf("could not init cert-file: %v", err))
+		errors = append(errors, fmt.Errorf("could not build sink: %v", err))
 		return
 	}
 
-	err = pkiImpl.Sign(csrPod, certPod, config.SignArguments)
+	err = pkiImpl.Sign(sink, config)
 	if err != nil {
 		errors = append(errors, err)
 	}
