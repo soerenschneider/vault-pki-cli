@@ -74,9 +74,9 @@ func main() {
 }
 
 func config() (*conf.Config, error) {
-	viper.SetDefault(strings.Replace(conf.FLAG_VAULT_MOUNT_PKI, "-", "_", -1), conf.FLAG_VAULT_MOUNT_PKI_DEFAULT)
-	viper.SetDefault(strings.Replace(conf.FLAG_VAULT_MOUNT_APPROLE, "-", "_", -1), conf.FLAG_VAULT_MOUNT_APPROLE_DEFAULT)
-	viper.SetDefault(strings.Replace(conf.FLAG_VAULT_PKI_BACKEND_ROLE, "-", "_", -1), conf.FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT)
+	viper.SetDefault(conf.FLAG_VAULT_MOUNT_PKI, conf.FLAG_VAULT_MOUNT_PKI_DEFAULT)
+	viper.SetDefault(conf.FLAG_VAULT_MOUNT_APPROLE, conf.FLAG_VAULT_MOUNT_APPROLE_DEFAULT)
+	viper.SetDefault(conf.FLAG_VAULT_PKI_BACKEND_ROLE, conf.FLAG_VAULT_PKI_BACKEND_ROLE_DEFAULT)
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")

@@ -14,7 +14,7 @@ type Config struct {
 	VaultSecretIdFile string `mapstructure:"vault-secret-id-file"`
 	VaultMountPki     string `mapstructure:"vault-mount-pki"`
 	VaultMountApprole string `mapstructure:"vault-mount-approle"`
-	VaultPkiRole      string `mapstructure:"vault-pki-role"`
+	VaultPkiRole      string `mapstructure:"vault-pki-role-name"`
 
 	Daemonize bool `mapstructure:"daemonize"`
 

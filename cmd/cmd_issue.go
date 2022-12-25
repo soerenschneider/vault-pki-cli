@@ -25,6 +25,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const tickDuration = 1 * time.Hour
+
 func getIssueCmd() *cobra.Command {
 	var issueCmd = &cobra.Command{
 		Use:   "issue",
@@ -38,12 +40,14 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_TTL, "", conf.FLAG_ISSUE_TTL_DEFAULT, "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_METRICS_ADDR, "", conf.FLAG_ISSUE_METRICS_ADDR_DEFAULT, "File to write metrics to")
+	issueCmd.Flags().BoolP(conf.FLAG_ISSUE_DAEMONIZE, "", conf.FLAG_ISSUE_DAEMONIZE_DEFAULT, "Run as daemon")
 	issueCmd.Flags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	issueCmd.Flags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
 	issueCmd.Flags().StringSlice(conf.FLAG_ISSUE_HOOKS, []string{}, "Run commands after issuing a new certificate.")
 	issueCmd.Flags().StringSlice(conf.FLAG_ISSUE_BACKEND_CONFIG, []string{}, "Backend config.")
 
 	viper.SetDefault(conf.FLAG_ISSUE_TTL, conf.FLAG_ISSUE_TTL_DEFAULT)
+	viper.SetDefault(conf.FLAG_ISSUE_DAEMONIZE, conf.FLAG_ISSUE_DAEMONIZE_DEFAULT)
 	viper.SetDefault(conf.FLAG_ISSUE_METRICS_ADDR, conf.FLAG_ISSUE_METRICS_ADDR_DEFAULT)
 	viper.SetDefault(conf.FLAG_ISSUE_METRICS_FILE, conf.FLAG_ISSUE_METRICS_FILE_DEFAULT)
 	viper.SetDefault(conf.FLAG_ISSUE_YUBIKEY_SLOT, conf.FLAG_ISSUE_YUBIKEY_SLOT_DEFAULT)
@@ -78,7 +82,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 		log.Fatal().Msgf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(tickDuration)
 	defer ticker.Stop()
 
 	interrupt := make(chan os.Signal, 1)
@@ -110,15 +114,11 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 			if len(errs) > 0 {
 				return fmt.Errorf("encountered errors: %v", errs)
 			}
-
 			return nil
 		case <-done:
-			log.Info().Msg("Received signal")
-
 			if len(errs) > 0 {
 				return fmt.Errorf("encountered errors: %v", errs)
 			}
-
 			return nil
 		case <-ticker.C:
 			continue
@@ -162,7 +162,7 @@ func issueCert(config *conf.Config) (errors []error) {
 		return
 	}
 
-	sink, err := sink.KeyPairSinkFromConfig(config)
+	sink, err := sink.MultiKeyPairSinkFromConfig(config)
 	if err != nil {
 		errors = append(errors, fmt.Errorf("can't build certificate output: %v", err))
 		return

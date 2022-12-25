@@ -24,11 +24,13 @@ const (
 	caId   = "ca"
 )
 
-func KeyPairSinkFromConfig(config *conf.Config) (*KeyPairSink, error) {
-	var certVal string
-	var keyVal string
-	var caVal string
+func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
+	var sinks []*KeyPairSink
 	for _, conf := range config.StorageConfig {
+		var certVal string
+		var keyVal string
+		var caVal string
+
 		val, ok := conf[certId]
 		if !ok {
 			return nil, fmt.Errorf("can not build storage, missing '%s' in storage configuration", certId)
@@ -45,31 +47,38 @@ func KeyPairSinkFromConfig(config *conf.Config) (*KeyPairSink, error) {
 		if ok {
 			caVal = val
 		}
-	}
 
-	builder, err := storage.GetBuilder()
-	if err != nil {
-		return nil, err
-	}
-	certSink, err := builder.BuildFromUri(certVal)
-	if err != nil {
-		return nil, err
-	}
-
-	keySink, err := builder.BuildFromUri(keyVal)
-	if err != nil {
-		return nil, err
-	}
-
-	var caSink pki.StorageImplementation
-	if len(caVal) > 0 {
-		caSink, err = builder.BuildFromUri(caVal)
+		builder, err := storage.GetBuilder()
 		if err != nil {
 			return nil, err
 		}
+		certSink, err := builder.BuildFromUri(certVal)
+		if err != nil {
+			return nil, err
+		}
+
+		keySink, err := builder.BuildFromUri(keyVal)
+		if err != nil {
+			return nil, err
+		}
+
+		var caSink pki.StorageImplementation
+		if len(caVal) > 0 {
+			caSink, err = builder.BuildFromUri(caVal)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		sink, err := NewKeyPairSink(certSink, keySink, caSink)
+		if err != nil {
+			return nil, fmt.Errorf("can't build individual sink: %v", err)
+		}
+
+		sinks = append(sinks, sink)
 	}
 
-	return NewKeyPairSink(certSink, keySink, caSink)
+	return sinks, nil
 }
 
 func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPairSink, error) {

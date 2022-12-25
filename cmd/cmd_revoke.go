@@ -63,7 +63,7 @@ func revokeCertEntryPoint(ccmd *cobra.Command, args []string) error {
 		return fmt.Errorf("could not build pki impl: %v", err)
 	}
 
-	sink, err := sink.KeyPairSinkFromConfig(config)
+	sink, err := sink.MultiKeyPairSinkFromConfig(config)
 
 	content, err := sink.ReadCert()
 	if err != nil {
