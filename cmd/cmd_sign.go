@@ -31,7 +31,7 @@ func getSignCmd() *cobra.Command {
 	signCmd.PersistentFlags().StringP(conf.FLAG_FILE_OWNER, "", "", "Owner of the written files. Defaults to the current user.")
 	signCmd.PersistentFlags().StringP(conf.FLAG_FILE_GROUP, "", "", "Group of the written files. Defaults to the current user's primary group.")
 	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
-	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", "48h", "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
+	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_TTL, "", conf.FLAG_ISSUE_TTL_DEFAULT, "Specifies requested Time To Live. Cannot be greater than the role's max_ttl value. If not provided, the role's ttl value will be used. Note that the role values default to system values if not explicitly set.")
 	signCmd.PersistentFlags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
@@ -55,11 +55,11 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	errs := signCert(config)
 	if len(errs) > 0 {
 		log.Error().Msgf("signing CSR not successful, %v", errs)
-		internal.MetricSuccess.Set(0)
+		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
 	} else {
-		internal.MetricSuccess.Set(1)
+		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
 	}
-	internal.MetricRunTimestamp.SetToCurrentTime()
+	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
 	if len(config.MetricsFile) > 0 {
 		internal.WriteMetrics(config.MetricsFile)
 	}

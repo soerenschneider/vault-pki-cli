@@ -113,13 +113,13 @@ func updateCertificateMetrics(cert *x509.Certificate) {
 	}
 
 	secondsTotal := cert.NotAfter.Sub(cert.NotBefore).Seconds()
-	internal.MetricCertLifetimeTotal.Set(secondsTotal)
+	internal.MetricCertLifetimeTotal.WithLabelValues(cert.Subject.CommonName).Set(secondsTotal)
 	secondsUntilExpiration := time.Until(cert.NotAfter).Seconds()
 
 	percentage := math.Max(0, secondsUntilExpiration*100./secondsTotal)
 
-	internal.MetricCertExpiry.Set(float64(cert.NotAfter.UnixMilli()))
-	internal.MetricCertLifetimePercent.Set(percentage)
+	internal.MetricCertExpiry.WithLabelValues(cert.Subject.CommonName).Set(float64(cert.NotAfter.UnixMilli()))
+	internal.MetricCertLifetimePercent.WithLabelValues(cert.Subject.CommonName).Set(percentage)
 }
 
 func shouldIssueNewCertificate(x509Cert *x509.Certificate, strategy issue_strategies.IssueStrategy) (bool, error) {
@@ -185,7 +185,7 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
-		internal.MetricCertParseErrors.Set(1)
+		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
 		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
@@ -218,7 +218,7 @@ func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
 	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(resp.Certificate)
 	if err != nil {
-		internal.MetricCertParseErrors.Set(1)
+		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
 		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))

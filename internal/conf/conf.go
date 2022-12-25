@@ -7,26 +7,29 @@ import (
 )
 
 type Config struct {
-	VaultAddress      string `mapstructure:"vault_address"`
-	VaultToken        string `mapstructure:"vault_token"`
-	VaultRoleId       string `mapstructure:"vault_role_id"`
-	VaultSecretId     string `mapstructure:"vault_secret_id"`
-	VaultSecretIdFile string `mapstructure:"vault_secret_id_file"`
-	VaultMountPki     string `mapstructure:"vault_mount_pki"`
-	VaultMountApprole string `mapstructure:"vault_mount_approle"`
-	VaultPkiRole      string `mapstructure:"vault_pki_role"`
+	VaultAddress      string `mapstructure:"vault-address"`
+	VaultToken        string `mapstructure:"vault-token"`
+	VaultRoleId       string `mapstructure:"vault-role-id"`
+	VaultSecretId     string `mapstructure:"vault-secret-id"`
+	VaultSecretIdFile string `mapstructure:"vault-secret-id-file"`
+	VaultMountPki     string `mapstructure:"vault-mount-pki"`
+	VaultMountApprole string `mapstructure:"vault-mount-approle"`
+	VaultPkiRole      string `mapstructure:"vault-pki-role"`
 
-	CommonName string   `mapstructure:"common_name"`
+	Daemonize bool `mapstructure:"daemonize"`
+
+	CommonName string   `mapstructure:"common-name"`
 	Ttl        string   `mapstructure:"ttl"`
-	IpSans     []string `mapstructure:"ip_sans"`
-	AltNames   []string `mapstructure:"alt_names"`
+	IpSans     []string `mapstructure:"ip-sans"`
+	AltNames   []string `mapstructure:"alt-names"`
 
-	MetricsFile string
+	MetricsFile string `mapstructure:"metrics-file"`
+	MetricsAddr string `mapstructure:"metrics-addr"`
 
 	ForceNewCertificate bool
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
-	PostIssueHooks                         []string `mapstructure:"post_hooks""`
+	PostIssueHooks                         []string `mapstructure:"post-hooks""`
 	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool

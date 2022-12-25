@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
+	"net/http"
+	"os"
 )
 
 const (
@@ -14,41 +16,41 @@ const (
 )
 
 var (
-	MetricSuccess = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricSuccess = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "success_bool",
 		Help:      "Whether the tool ran successful",
-	})
+	}, []string{"domain"})
 
-	MetricCertExpiry = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricCertExpiry = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "cert_expiry_seconds",
 		Help:      "The date after the cert is not valid anymore",
-	})
+	}, []string{"domain"})
 
-	MetricCertLifetimeTotal = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricCertLifetimeTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "cert_lifetime_seconds_total",
 		Help:      "The total number of seconds this certificate is valid",
-	})
+	}, []string{"domain"})
 
-	MetricCertParseErrors = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricCertParseErrors = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "cert_parse_errors_total",
 		Help:      "The total number of parsing errors of a cert",
-	})
+	}, []string{"domain"})
 
-	MetricCertLifetimePercent = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricCertLifetimePercent = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "cert_lifetime_percent",
 		Help:      "The passed lifetime of the certificate in percent",
-	})
+	}, []string{"domain"})
 
-	MetricRunTimestamp = promauto.NewGauge(prometheus.GaugeOpts{
+	MetricRunTimestamp = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "run_timestamp_seconds",
 		Help:      "The date after the cert is not valid anymore",
-	})
+	}, []string{"domain"})
 )
 
 func WriteMetrics(path string) error {
@@ -59,11 +61,19 @@ func WriteMetrics(path string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(path, []byte(metrics), 0644)
+	err = os.WriteFile(path, []byte(metrics), 0644)
 	if err != nil {
 		log.Info().Msgf("Error writing metrics to '%s': %v", path, err)
 	}
 	return err
+}
+
+func StartMetricsServer(addr string) {
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(addr, nil)
+	if err != nil {
+		log.Fatal().Msgf("can not start metrics server at %s: %v", addr, err)
+	}
 }
 
 func dumpMetrics() (string, error) {

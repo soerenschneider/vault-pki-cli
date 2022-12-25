@@ -25,6 +25,7 @@ const (
 	FLAG_ISSUE_COMMON_NAME  = "common-name"
 	FLAG_ISSUE_ALT_NAMES    = "alt-names"
 	FLAG_ISSUE_METRICS_FILE = "metrics-file"
+	FLAG_ISSUE_METRICS_ADDR = "metrics-addr"
 	FLAG_ISSUE_HOOKS        = "hooks"
 
 	FLAG_OUTPUT_FILE = "output-file"

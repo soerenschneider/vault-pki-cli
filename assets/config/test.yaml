@@ -1,9 +1,10 @@
-vault_address: http://localhost:8200
-common_name: vault-pki.example.com
-vault_pki_role: my_role
-vault_mount_pki: pki_intermediate
-vault_mount_approle: approle
-vault_token: vault-pki-cli
+vault-address: http://localhost:8200
+common-name: vault-pki.example.com
+vault-pki-role: my_role
+vault-mount-pki: pki_intermediate
+vault-mount-approle: approle
+vault-token: vault-pki-cli
+daemonize: true
 ttl: 48h
 storage:
   - key: file:///tmp/pki.key
