@@ -6,6 +6,7 @@ require (
 	github.com/go-piv/piv-go v1.10.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/hashicorp/vault/api v1.8.2
+	github.com/hashicorp/vault/api/auth/kubernetes v0.3.0
 	github.com/ilius/go-askpass v0.0.0-20200508084844-f833acf6c50c
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0

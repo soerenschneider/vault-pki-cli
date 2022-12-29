@@ -7,7 +7,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
-	"log"
 )
 
 // CsrSink offers an interface to read/write keypair data (certificate and private key) and optional ca data.
@@ -83,7 +82,6 @@ func NewCsrSink(cert, csr, chain pki.StorageImplementation) (*CsrSink, error) {
 
 func (f *CsrSink) WriteCert(certData *pki.CertData) error {
 	if certData.HasCaData() && f.ca != nil {
-		log.Println("--------------------------")
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err
 		}
@@ -111,7 +109,6 @@ func (f *CsrSink) ReadCsr() ([]byte, error) {
 
 func (f *CsrSink) WriteSignature(cert *pki.Signature) error {
 	if cert.HasCaData() && f.ca != nil {
-		log.Println("--------------------------")
 		if err := f.ca.Write(append(cert.CaData, "\n"...)); err != nil {
 			return err
 		}

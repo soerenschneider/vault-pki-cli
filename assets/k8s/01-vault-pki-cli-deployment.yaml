@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault-pki-cli
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: vault-pki-cli
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vault-pki-cli
+subjects:
+  - kind: ServiceAccount
+    name: vault-pki-cli
+roleRef:
+  kind: Role  # this must be Role or ClusterRole
+  name: vault-pki-cli
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-pki-cli-config
+data:
+  config.yaml: |
+    vault-address: http://vault:8200
+    common-name: vault-pki.example.com
+    vault-pki-role: my_role
+    vault-k8s-role: vault-pki
+    daemonize: true
+    ttl: 48h
+    lifetime-threshold-percent: 66
+    storage:
+      - key: k8s-sec:///default/key
+        cert: k8s-cm:///default/cert
+        ca: k8s-cm:///default/ca
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: vault-pki-cli
+  name: vault-pki-cli
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-pki-cli
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: vault-pki-cli
+    spec:
+      serviceAccountName: vault-pki-cli
+      containers:
+        - image: ghcr.io/soerenschneider/vault-pki-cli:9d5b45befb185c0853ed9ac777579d9872de3cbf0db9930abe1493a1126ce581
+          name: vault-pki-cli
+          command:
+            - /vault-pki-cli
+            - --config
+            - /etc/vault-pki-cli/config.yaml
+            - issue
+          imagePullPolicy:  IfNotPresent
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vault-pki-cli
+      volumes:
+        - name: config
+          configMap:
+            name: vault-pki-cli-config

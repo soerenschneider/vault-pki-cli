@@ -1,6 +1,7 @@
 package conf
 
 import (
+	"errors"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 type Config struct {
 	VaultAddress      string `mapstructure:"vault-address"`
 	VaultToken        string `mapstructure:"vault-token"`
+	VaultAuthK8sRole  string `mapstructure:"vault-k8s-role"`
 	VaultRoleId       string `mapstructure:"vault-role-id"`
 	VaultSecretId     string `mapstructure:"vault-secret-id"`
 	VaultSecretIdFile string `mapstructure:"vault-secret-id-file"`
@@ -50,19 +52,30 @@ func (c *Config) Validate() []error {
 	errs := make([]error, 0)
 
 	emptyVaultToken := len(c.VaultToken) == 0
+	emptyVaultAuthK8sRole := len(c.VaultAuthK8sRole) == 0
 	emptyRoleId := len(c.VaultRoleId) == 0
 	emptySecretId := len(c.VaultSecretId) == 0 && len(c.VaultSecretIdFile) == 0
 	emptyAppRoleAuth := emptySecretId || emptyRoleId
-	if emptyAppRoleAuth && emptyVaultToken {
-		errs = append(errs, fmt.Errorf("neither '%s' nor AppRole auth info provided", FLAG_VAULT_TOKEN))
+
+	numAuthMethodsProvided := 0
+	if !emptyVaultToken {
+		numAuthMethodsProvided += 1
+	}
+	if !emptyAppRoleAuth {
+		numAuthMethodsProvided += 1
+	}
+	if !emptyVaultAuthK8sRole {
+		numAuthMethodsProvided += 1
 	}
 
-	if !emptyAppRoleAuth && !emptyVaultToken {
-		errs = append(errs, fmt.Errorf("both '%s' and AppRole auth info provided, don't know what to pick", FLAG_VAULT_TOKEN))
+	if numAuthMethodsProvided == 0 {
+		errs = append(errs, errors.New("no vault auth info provided. supply either token, AppRole or k8s auth info"))
+	} else if numAuthMethodsProvided > 1 {
+		errs = append(errs, fmt.Errorf("must provide only a single vault auth method, %d were provided", numAuthMethodsProvided))
 	}
 
 	if len(c.VaultSecretId) > 0 && len(c.VaultSecretIdFile) > 0 {
-		errs = append(errs, fmt.Errorf("both '%s' and '%s' auth info provided, don't know what to pick", FLAG_VAULT_SECRET_ID, FLAG_VAULT_SECRET_ID_FILE))
+		errs = append(errs, fmt.Errorf("both '%s' and '%s' auth info provided, don't know what to pick", FLAG_VAULT_AUTH_APPROLE_SECRET_ID, FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE))
 	}
 
 	if len(c.VaultAddress) == 0 {
@@ -70,11 +83,11 @@ func (c *Config) Validate() []error {
 	}
 
 	if len(c.VaultMountApprole) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_MOUNT_APPROLE))
+		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_APPROLE_MOUNT))
 	}
 
 	if len(c.VaultMountPki) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_MOUNT_PKI))
+		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_MOUNT))
 	}
 
 	if len(c.VaultPkiRole) == 0 {
