@@ -8,7 +8,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
-	"k8s.io/client-go/kubernetes"
 )
 
 func getVaultConfig(conf *conf.Config) *api.Config {
@@ -18,14 +17,14 @@ func getVaultConfig(conf *conf.Config) *api.Config {
 	return vaultConfig
 }
 
-func getKubernetesClient(conf *conf.Config) *kubernetes.Clientset {
-	return nil
-}
-
 func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, error) {
 	token := conf.VaultToken
 	if len(token) > 0 {
 		return vault.NewTokenAuth(token)
+	}
+
+	if len(conf.VaultAuthK8sRole) > 0 {
+		return vault.NewVaultKubernetesAuth(client, conf.VaultAuthK8sRole)
 	}
 
 	approleData := make(map[string]string)

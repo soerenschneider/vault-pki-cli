@@ -8,7 +8,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
-	"log"
 )
 
 // KeyPairSink offers an interface to read/write keypair data (certificate and private key) and optional ca data.
@@ -95,7 +94,6 @@ func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPair
 
 func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 	if certData.HasCaData() && f.ca != nil {
-		log.Println("--------------------------")
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err
 		}

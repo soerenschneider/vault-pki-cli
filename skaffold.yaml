@@ -9,4 +9,4 @@ build:
       dockerfile: Dockerfile
 manifests:
   rawYaml:
-  - assets/k8s/deployment.yaml
+  - assets/k8s/01-vault-pki-cli-deployment.yaml
