@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.8.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.7.0...v1.8.0) (2022-12-29)
+
+
+### Features
+
+* Add k8s auth for vault ([#86](https://github.com/soerenschneider/vault-pki-cli/issues/86)) ([ad93140](https://github.com/soerenschneider/vault-pki-cli/commit/ad93140ee4f37ae63c2b4a779b9e9f994ece9c31))
+* add multi sink for keypairs ([#82](https://github.com/soerenschneider/vault-pki-cli/issues/82)) ([6416e0f](https://github.com/soerenschneider/vault-pki-cli/commit/6416e0fb90b5145903af945dc9440de9d5d23020))
+* initial support for k8s backend ([#80](https://github.com/soerenschneider/vault-pki-cli/issues/80)) ([6aa4292](https://github.com/soerenschneider/vault-pki-cli/commit/6aa429290c6c9557327258a93a6cea602b32f307))
+* support for running as daemon ([9d9a939](https://github.com/soerenschneider/vault-pki-cli/commit/9d9a939c2941b8a076164a6e30701d5df3d0b773))
+
 ## [1.7.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.6.3...v1.7.0) (2022-12-07)
 
 
