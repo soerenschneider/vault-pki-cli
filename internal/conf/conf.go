@@ -9,13 +9,13 @@ import (
 
 type Config struct {
 	VaultAddress      string `mapstructure:"vault-address"`
-	VaultToken        string `mapstructure:"vault-token"`
-	VaultAuthK8sRole  string `mapstructure:"vault-k8s-role"`
-	VaultRoleId       string `mapstructure:"vault-role-id"`
-	VaultSecretId     string `mapstructure:"vault-secret-id"`
-	VaultSecretIdFile string `mapstructure:"vault-secret-id-file"`
-	VaultMountPki     string `mapstructure:"vault-mount-pki"`
-	VaultMountApprole string `mapstructure:"vault-mount-approle"`
+	VaultToken        string `mapstructure:"vault-auth-token"`
+	VaultAuthK8sRole  string `mapstructure:"vault-auth-k8s-role"`
+	VaultRoleId       string `mapstructure:"vault-auth-role-id"`
+	VaultSecretId     string `mapstructure:"vault-auth-secret-id"`
+	VaultSecretIdFile string `mapstructure:"vault-auth-secret-id-file"`
+	VaultMountApprole string `mapstructure:"vault-approle-mount"`
+	VaultMountPki     string `mapstructure:"vault-pki-mount"`
 	VaultPkiRole      string `mapstructure:"vault-pki-role-name"`
 
 	Daemonize bool `mapstructure:"daemonize"`

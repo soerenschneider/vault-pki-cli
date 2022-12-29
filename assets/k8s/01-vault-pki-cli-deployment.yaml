@@ -39,7 +39,7 @@ data:
     vault-address: http://vault:8200
     common-name: vault-pki.example.com
     vault-pki-role: my_role
-    vault-k8s-role: vault-pki
+    vault-auth-k8s-role: vault-pki
     daemonize: true
     ttl: 48h
     lifetime-threshold-percent: 66
