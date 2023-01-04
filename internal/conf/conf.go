@@ -7,6 +7,12 @@ import (
 	"reflect"
 )
 
+var sensitiveVars = map[string]struct{}{
+	FLAG_VAULT_AUTH_APPROLE_ID:        {},
+	FLAG_VAULT_AUTH_APPROLE_SECRET_ID: {},
+	FLAG_VAULT_AUTH_TOKEN:             {},
+}
+
 type Config struct {
 	VaultAddress      string `mapstructure:"vault-address"`
 	VaultToken        string `mapstructure:"vault-auth-token"`
@@ -38,11 +44,18 @@ type Config struct {
 }
 
 func (c *Config) Print() {
-	log.Info().Msg("Active config values")
+	log.Info().Msg("---")
+	log.Info().Msg("Active config values:")
 	val := reflect.ValueOf(c).Elem()
 	for i := 0; i < val.NumField(); i++ {
 		if !val.Field(i).IsZero() {
-			log.Info().Msgf("%s=%v", val.Type().Field(i).Name, val.Field(i))
+			fieldName := val.Type().Field(i).Tag.Get("mapstructure")
+			_, isSensitive := sensitiveVars[fieldName]
+			if isSensitive {
+				log.Info().Msgf("%s=*** (redacted)", fieldName)
+			} else {
+				log.Info().Msgf("%s=%v", fieldName, val.Field(i))
+			}
 		}
 	}
 	log.Info().Msg("---")
