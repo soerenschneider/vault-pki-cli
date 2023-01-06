@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -29,7 +30,21 @@ func TestNewFilesystemStorageFromUri(t *testing.T) {
 			name: "Simple",
 			uri:  "file:///home/soeren/.certs/cert.pem",
 			want: &FilesystemStorage{
-				FilePath: "/home/soeren/.certs/cert.pem",
+				FilePath:  "/home/soeren/.certs/cert.pem",
+				FileOwner: nil,
+				FileGroup: nil,
+				Mode:      defaultMode,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Permission",
+			uri:  "file:///home/soeren/.certs/cert.pem?chmod=755",
+			want: &FilesystemStorage{
+				FilePath:  "/home/soeren/.certs/cert.pem",
+				FileOwner: nil,
+				FileGroup: nil,
+				Mode:      os.FileMode(0755),
 			},
 			wantErr: false,
 		},
@@ -40,6 +55,7 @@ func TestNewFilesystemStorageFromUri(t *testing.T) {
 				FilePath:  "/home/soeren/.certs/cert.pem",
 				FileOwner: getLiteral(0),
 				FileGroup: getLiteral(0),
+				Mode:      defaultMode,
 			},
 			wantErr: false,
 		},

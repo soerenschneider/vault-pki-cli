@@ -16,9 +16,15 @@ type FilesystemStorage struct {
 	FilePath  string
 	FileOwner *int
 	FileGroup *int
+	Mode      os.FileMode
 }
 
-const FsScheme = "file"
+const (
+	FsScheme   = "file"
+	ParamChmod = "chmod"
+)
+
+var defaultMode os.FileMode = 0700
 
 func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 	parsed, err := url.Parse(uri)
@@ -44,10 +50,29 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 		}
 	}
 
-	return NewFilesystemStorage(path, username, pass)
+	mode := defaultMode
+	params, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse queries")
+	}
+	for key, val := range params {
+		if key == ParamChmod {
+			parsed, err := strconv.ParseInt(val[0], 8, 32)
+			if err != nil {
+				return nil, fmt.Errorf("could not parse value for 'chmod' param: %v", val)
+			}
+
+			mode = os.FileMode(parsed)
+			if err != nil {
+				return nil, fmt.Errorf("invalid file mode supplied: %v", val[0])
+			}
+		}
+	}
+
+	return newFilesystemStorage(path, username, pass, mode)
 }
 
-func NewFilesystemStorage(path, owner, group string) (*FilesystemStorage, error) {
+func newFilesystemStorage(path, owner, group string, mode os.FileMode) (*FilesystemStorage, error) {
 	if len(path) == 0 {
 		return nil, errors.New("empty path provided")
 	}
@@ -79,6 +104,7 @@ func NewFilesystemStorage(path, owner, group string) (*FilesystemStorage, error)
 		FilePath:  path,
 		FileOwner: uid,
 		FileGroup: gid,
+		Mode:      mode,
 	}, nil
 }
 
@@ -92,7 +118,7 @@ func (fs *FilesystemStorage) CanRead() error {
 }
 
 func (fs *FilesystemStorage) Write(signedData []byte) error {
-	err := os.WriteFile(fs.FilePath, signedData, 0640)
+	err := os.WriteFile(fs.FilePath, signedData, fs.Mode)
 	if err != nil {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
 	}
