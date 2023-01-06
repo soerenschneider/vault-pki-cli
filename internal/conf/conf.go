@@ -22,6 +22,7 @@ type Config struct {
 	VaultSecretIdFile string `mapstructure:"vault-auth-secret-id-file"`
 	VaultMountApprole string `mapstructure:"vault-approle-mount"`
 	VaultMountPki     string `mapstructure:"vault-pki-mount"`
+	VaultMountKv2     string `mapstructure:"vault-kv2-mount"`
 	VaultPkiRole      string `mapstructure:"vault-pki-role-name"`
 
 	Daemonize bool `mapstructure:"daemonize"`
@@ -31,13 +32,15 @@ type Config struct {
 	IpSans     []string `mapstructure:"ip-sans"`
 	AltNames   []string `mapstructure:"alt-names"`
 
+	AcmePrefix string `mapstructure:"acme-prefix"`
+
 	MetricsFile string `mapstructure:"metrics-file"`
 	MetricsAddr string `mapstructure:"metrics-addr"`
 
 	ForceNewCertificate bool
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
-	PostIssueHooks                         []string `mapstructure:"post-hooks""`
+	PostHooks                              []string `mapstructure:"post-hooks""`
 	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool

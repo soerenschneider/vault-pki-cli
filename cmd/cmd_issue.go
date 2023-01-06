@@ -205,7 +205,7 @@ func issueCert(config *conf.Config) (errors []error) {
 }
 
 func runPostIssueHooks(config *conf.Config) (errs []error) {
-	for _, hook := range config.PostIssueHooks {
+	for _, hook := range config.PostHooks {
 		log.Info().Msgf("Running command '%s'", hook)
 		parsed := strings.Split(hook, " ")
 		cmd := exec.Command(parsed[0], parsed[1:]...)

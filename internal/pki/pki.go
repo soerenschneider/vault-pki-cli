@@ -1,6 +1,7 @@
 package pki
 
 import (
+	"bytes"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -32,6 +33,8 @@ type Pki interface {
 
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
+
+	ReadAcme(commonName string, config *conf.Config) (*CertData, error)
 
 	// Tidy cleans up the PKI blob storage of dangling certificates
 	Tidy() error
@@ -159,6 +162,43 @@ func (p *PkiCli) cleanup() {
 	if err != nil {
 		log.Error().Msgf("Cleanup of the backend failed: %v", err)
 	}
+}
+
+func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
+	var changed bool
+	certData, err := format.ReadCert()
+	if err != nil || certData == nil {
+		log.Info().Msg("No existing local certdata available")
+		changed = true
+	}
+
+	log.Info().Msgf("Trying to read certificate for domain '%s'", opts.CommonName)
+	cert, err := p.pkiImpl.ReadAcme(opts.CommonName, opts)
+	if err != nil {
+		return changed, fmt.Errorf("error issuing certificate %w", err)
+	}
+	log.Info().Msg("Certificate successfully read from Vault kv2")
+
+	// Update metrics for the just received cert
+	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
+	if err != nil {
+		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
+		log.Error().Msgf("Could not parse certificate data: %w", err)
+	} else {
+		log.Info().Msgf("Read certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
+		updateCertificateMetrics(x509Cert)
+	}
+
+	if !changed {
+		changed = bytes.Compare(certData.Raw, x509Cert.Raw) != 0
+	}
+
+	err = format.WriteCert(cert)
+	if err != nil {
+		return changed, fmt.Errorf("could not write bundle to backend: %v", err)
+	}
+
+	return changed, nil
 }
 
 func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error) {

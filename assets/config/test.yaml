@@ -1,6 +1,6 @@
 vault-address: http://localhost:8200
 common-name: vault-pki.example.com
-vault-token: vault-pki-cli
+vault-auth-token: vault-pki-cli
 daemonize: true
 ttl: 48h
 storage:

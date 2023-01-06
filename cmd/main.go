@@ -66,6 +66,7 @@ func main() {
 	root.AddCommand(readCaCmd())
 	root.AddCommand(readCaChainCmd())
 	root.AddCommand(readCrlCmd())
+	root.AddCommand(getReadAcmeCmd())
 	root.AddCommand(versionCmd)
 
 	if err := root.Execute(); err != nil {
