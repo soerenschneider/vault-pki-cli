@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.8.0...v1.9.0) (2023-01-06)
+
+
+### Features
+
+* add 'chmod' param ([47124ee](https://github.com/soerenschneider/vault-pki-cli/commit/47124eeee4ec2b0833cfd66f653a72259af269d3))
+* Enable reading certificates provided by Acmevault ([0750190](https://github.com/soerenschneider/vault-pki-cli/commit/075019001a26f73256fb0da9414e9c906404b0e3))
+
+
+### Bug Fixes
+
+* don't print sensitive values ([6e6eb86](https://github.com/soerenschneider/vault-pki-cli/commit/6e6eb86c3180f59d9e2fcd132c488fb7208aaca3))
+* prevent writing 'go_' prefixed metrics to file ([de8a67b](https://github.com/soerenschneider/vault-pki-cli/commit/de8a67b2eab09aa5b445f880165ca7af649e0924))
+
 ## [1.8.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.7.0...v1.8.0) (2022-12-29)
 
 
