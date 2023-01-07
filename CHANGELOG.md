@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.9.0...v1.9.1) (2023-01-07)
+
+
+### Bug Fixes
+
+* fix uid and gid parsing ([976d1e9](https://github.com/soerenschneider/vault-pki-cli/commit/976d1e93b5b36ac524770ae0caecc834341a7696))
+
 ## [1.9.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.8.0...v1.9.0) (2023-01-06)
 
 
