@@ -83,21 +83,21 @@ func newFilesystemStorage(path, owner, group string, mode os.FileMode) (*Filesys
 		if err != nil {
 			return nil, fmt.Errorf("could not lookup user '%s': %v", owner, err)
 		}
-		conv, err := strconv.Atoi(localUser.Uid)
+		cuid, err := strconv.Atoi(localUser.Uid)
 		if err != nil {
 			return nil, fmt.Errorf("was expecting a numerical uid, got '%s'", localUser.Uid)
 		}
-		uid = &conv
+		uid = &cuid
 
 		localGroup, err := user.LookupGroup(group)
 		if err != nil {
 			return nil, fmt.Errorf("could not lookup group '%s': %v", group, err)
 		}
-		conv, err = strconv.Atoi(localGroup.Gid)
+		cgid, err := strconv.Atoi(localGroup.Gid)
 		if err != nil {
 			return nil, fmt.Errorf("was expecting a numerical gid, got '%s'", localGroup.Gid)
 		}
-		gid = &conv
+		gid = &cgid
 	}
 
 	return &FilesystemStorage{
