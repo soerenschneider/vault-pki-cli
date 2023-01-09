@@ -143,7 +143,14 @@ func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 }
 
 func (f *KeyPairSink) ReadCert() (*x509.Certificate, error) {
-	data, err := f.cert.Read()
+	var source pki.StorageImplementation
+	if f.cert != nil {
+		source = f.cert
+	} else {
+		source = f.privateKey
+	}
+
+	data, err := source.Read()
 	if err != nil {
 		return nil, err
 	}
