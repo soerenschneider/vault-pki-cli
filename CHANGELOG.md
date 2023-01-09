@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.1...v1.10.2) (2023-01-09)
+
+
+### Bug Fixes
+
+* don't read from nil cert storage ([134a0ad](https://github.com/soerenschneider/vault-pki-cli/commit/134a0adfedb5b4ad376ae6f02d67cbc8c9b7a85b))
+* fix msgf directives ([f73c5bc](https://github.com/soerenschneider/vault-pki-cli/commit/f73c5bc53716cba25a7ec82e65475019353d4156))
+
 ## [1.10.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.0...v1.10.1) (2023-01-09)
 
 
