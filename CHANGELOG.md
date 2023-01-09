@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.0...v1.10.1) (2023-01-09)
+
+
+### Bug Fixes
+
+* re-arrange cert data when writing to single file ([05d6766](https://github.com/soerenschneider/vault-pki-cli/commit/05d676677c8e44a8aadfb3aaadc7337f005fa328))
+
 ## [1.10.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.9.1...v1.10.0) (2023-01-09)
 
 
