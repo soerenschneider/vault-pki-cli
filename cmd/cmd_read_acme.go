@@ -93,7 +93,7 @@ func readAcmeCert(config *conf.Config) (errors []error) {
 
 	changed, err := pkiImpl.ReadAcme(sink, config)
 	if err != nil {
-		log.Error().Msgf("could not read certificate: %w", err)
+		log.Error().Msgf("could not read certificate: %v", err)
 		errors = append(errors, err)
 	}
 

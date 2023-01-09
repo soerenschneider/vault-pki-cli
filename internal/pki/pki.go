@@ -183,7 +183,7 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
 		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
-		log.Error().Msgf("Could not parse certificate data: %w", err)
+		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("Read certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
 		updateCertificateMetrics(x509Cert)
