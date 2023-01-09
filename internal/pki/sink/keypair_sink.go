@@ -88,10 +88,6 @@ func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPair
 		return nil, errors.New("empty private key storage provided")
 	}
 
-	if nil == cert && nil != chain {
-		return nil, errors.New("please specify either a storage for the certificate or remove the storage for the chain")
-	}
-
 	return &KeyPairSink{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
@@ -100,21 +96,35 @@ func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 		return errors.New("got nil as certData")
 	}
 
-	if f.cert == nil {
-		if !certData.HasPrivateKey() {
-			return errors.New("WriteCert(): can not write data, cert data contains no private key and no cert storage provided")
-		}
-
+	// case 1: write cert, ca and private key to same storage
+	if f.cert == nil && f.ca == nil {
 		var data []byte
+		data = append(certData.Certificate, "\n"...)
 		if certData.HasCaData() {
-			data = append(certData.CaData, "\n"...)
+			data = append(data, append(certData.CaData, "\n"...)...)
 		}
-		data = append(data, append(certData.Certificate, "\n"...)...)
 		data = append(data, append(certData.PrivateKey, "\n"...)...)
 
 		return f.privateKey.Write(data)
 	}
 
+	// case 2: write cert and private to a same storage, write ca (if existent) to dedicated storage
+	if f.cert == nil && f.ca != nil {
+		var data []byte
+		data = append(certData.Certificate, "\n"...)
+		data = append(data, append(certData.PrivateKey, "\n"...)...)
+
+		err := f.privateKey.Write(data)
+		if err != nil {
+			return err
+		}
+
+		if certData.HasCaData() {
+			return f.ca.Write(append(certData.CaData, "\n"...))
+		}
+	}
+
+	// case 3: write to individual storage
 	if certData.HasCaData() && f.ca != nil {
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err

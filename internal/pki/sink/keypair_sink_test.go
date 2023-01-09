@@ -41,7 +41,7 @@ func TestKeyPairSink_WriteCert(t *testing.T) {
 				privateKey: &storage.BufferPod{},
 			},
 			wantErr:  false,
-			wantData: fmt.Sprintf("%s\n%s\n%s\n", ca, cert, privKey),
+			wantData: fmt.Sprintf("%s\n%s\n%s\n", cert, ca, privKey),
 		},
 		{
 			name: "write cert and key to single file",
