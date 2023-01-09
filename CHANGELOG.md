@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.9.1...v1.10.0) (2023-01-09)
+
+
+### Features
+
+* allow writing all cert data to single file ([e1bba82](https://github.com/soerenschneider/vault-pki-cli/commit/e1bba82e489fe125ca96af2ed7daced3e1cdceb9))
+
 ## [1.9.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.9.0...v1.9.1) (2023-01-07)
 
 
