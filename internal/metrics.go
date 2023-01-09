@@ -13,42 +13,42 @@ import (
 )
 
 const (
-	namespace = "vault_pki_cli"
+	metricsNamespace = "vault_pki_cli"
 )
 
 var (
 	MetricSuccess = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "success_bool",
 		Help:      "Whether the tool ran successful",
 	}, []string{"domain"})
 
 	MetricCertExpiry = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "cert_expiry_seconds",
 		Help:      "The date after the cert is not valid anymore",
 	}, []string{"domain"})
 
 	MetricCertLifetimeTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "cert_lifetime_seconds_total",
 		Help:      "The total number of seconds this certificate is valid",
 	}, []string{"domain"})
 
 	MetricCertParseErrors = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "cert_parse_errors_total",
 		Help:      "The total number of parsing errors of a cert",
 	}, []string{"domain"})
 
 	MetricCertLifetimePercent = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "cert_lifetime_percent",
 		Help:      "The passed lifetime of the certificate in percent",
 	}, []string{"domain"})
 
 	MetricRunTimestamp = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: namespace,
+		Namespace: metricsNamespace,
 		Name:      "run_timestamp_seconds",
 		Help:      "The date after the cert is not valid anymore",
 	}, []string{"domain"})
@@ -88,7 +88,7 @@ func dumpMetrics() (string, error) {
 
 	for _, f := range families {
 		// Writing these metrics will cause a duplication error with other tools writing the same metrics
-		if !strings.HasPrefix(f.GetName(), "go_") {
+		if strings.HasPrefix(f.GetName(), metricsNamespace) {
 			if err := enc.Encode(f); err != nil {
 				log.Info().Msgf("could not encode metric: %s", err.Error())
 			}
