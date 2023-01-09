@@ -31,10 +31,9 @@ func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
 		var caVal string
 
 		val, ok := conf[certId]
-		if !ok {
-			return nil, fmt.Errorf("can not build storage, missing '%s' in storage configuration", certId)
+		if ok {
+			certVal = val
 		}
-		certVal = val
 
 		val, ok = conf[keyId]
 		if !ok {
@@ -51,9 +50,13 @@ func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
 		if err != nil {
 			return nil, err
 		}
-		certSink, err := builder.BuildFromUri(certVal)
-		if err != nil {
-			return nil, err
+
+		var certSink pki.StorageImplementation
+		if len(certVal) > 0 {
+			certSink, err = builder.BuildFromUri(certVal)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		keySink, err := builder.BuildFromUri(keyVal)
@@ -81,18 +84,37 @@ func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
 }
 
 func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPairSink, error) {
-	if nil == cert {
-		return nil, errors.New("empty cert storage provided")
-	}
-
 	if nil == privateKey {
 		return nil, errors.New("empty private key storage provided")
+	}
+
+	if nil == cert && nil != chain {
+		return nil, errors.New("please specify either a storage for the certificate or remove the storage for the chain")
 	}
 
 	return &KeyPairSink{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
 func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
+	if nil == certData {
+		return errors.New("got nil as certData")
+	}
+
+	if f.cert == nil {
+		if !certData.HasPrivateKey() {
+			return errors.New("WriteCert(): can not write data, cert data contains no private key and no cert storage provided")
+		}
+
+		var data []byte
+		if certData.HasCaData() {
+			data = append(certData.CaData, "\n"...)
+		}
+		data = append(data, append(certData.Certificate, "\n"...)...)
+		data = append(data, append(certData.PrivateKey, "\n"...)...)
+
+		return f.privateKey.Write(data)
+	}
+
 	if certData.HasCaData() && f.ca != nil {
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err
