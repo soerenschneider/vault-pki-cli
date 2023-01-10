@@ -22,11 +22,11 @@ func getReadAcmeCmd() *cobra.Command {
 	}
 
 	issueCmd.Flags().StringP(conf.FLAG_ISSUE_COMMON_NAME, "", "", "Specifies the requested CN for the certificate. If the CN is allowed by role policy, it will be issued.")
-	issueCmd.Flags().StringP(conf.FLAG_ISSUE_METRICS_FILE, "", conf.FLAG_ISSUE_METRICS_FILE_DEFAULT, "File to write metrics to")
+	issueCmd.Flags().StringP(conf.FLAG_METRICS_FILE, "", conf.FLAG_ACME_METRICS_FILE_DEFAULT, "File to write metrics to")
 	issueCmd.Flags().StringP(conf.FLAG_READACME_ACME_PREFIX, "", conf.FLAG_READACME_ACME_PREFIX_DEFAULT, "Prefix for Acmevault kv2 secret paths")
 	issueCmd.Flags().StringP(conf.FLAG_VAULT_MOUNT_KV2, "", conf.FLAG_VAULT_MOUNT_KV2_DEFAULT, "Mount path for kv2 secret")
 
-	viper.SetDefault(conf.FLAG_ISSUE_METRICS_ADDR, conf.FLAG_ISSUE_METRICS_ADDR_DEFAULT)
+	viper.SetDefault(conf.FLAG_METRICS_FILE, conf.FLAG_ACME_METRICS_FILE_DEFAULT)
 	viper.SetDefault(conf.FLAG_READACME_ACME_PREFIX, conf.FLAG_READACME_ACME_PREFIX_DEFAULT)
 	viper.SetDefault(conf.FLAG_VAULT_MOUNT_KV2, conf.FLAG_VAULT_MOUNT_KV2_DEFAULT)
 
