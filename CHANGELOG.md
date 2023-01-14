@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.2...v1.10.3) (2023-01-14)
+
+
+### Bug Fixes
+
+* fix duplicated short-hand flag ([30231a5](https://github.com/soerenschneider/vault-pki-cli/commit/30231a5490badf1058fcb126b9cb5445967ea202))
+
 ## [1.10.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.1...v1.10.2) (2023-01-09)
 
 
