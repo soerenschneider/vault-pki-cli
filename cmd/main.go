@@ -48,7 +48,7 @@ func main() {
 		},
 	}
 
-	root.PersistentFlags().BoolP(conf.FLAG_DEBUG, "d", false, "Enable debug logging")
+	root.PersistentFlags().BoolP(conf.FLAG_DEBUG, "v", false, "Enable verbose logging")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_ADDRESS, "a", "", "Vault instance to connect to. If not specified, falls back to env var VAULT_ADDR.")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_TOKEN, "t", "", "Vault token to use for authentication. Can not be used in conjunction with AppRole login data.")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_K8S_ROLE, "k", "", "Kubernetes role to authenticate against vault")
