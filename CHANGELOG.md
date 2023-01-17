@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.4](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.3...v1.10.4) (2023-01-17)
+
+
+### Miscellaneous Chores
+
+* release 1.10.4 ([167444a](https://github.com/soerenschneider/vault-pki-cli/commit/167444a465286db708a0beea8ac1a5b9281fc6bc))
+
 ## [1.10.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.2...v1.10.3) (2023-01-14)
 
 
