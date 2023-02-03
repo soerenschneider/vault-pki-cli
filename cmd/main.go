@@ -51,6 +51,7 @@ func main() {
 	root.PersistentFlags().BoolP(conf.FLAG_DEBUG, "v", false, "Enable verbose logging")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_ADDRESS, "a", "", "Vault instance to connect to. If not specified, falls back to env var VAULT_ADDR.")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_TOKEN, "t", "", "Vault token to use for authentication. Can not be used in conjunction with AppRole login data.")
+	root.PersistentFlags().BoolP(conf.FLAG_VAULT_AUTH_IMPLICIT, "i", false, "Try to implicitly authenticate to vault using VAULT_TOKEN env var or ~/.vault-token file.")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_K8S_ROLE, "k", "", "Kubernetes role to authenticate against vault")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_APPROLE_ID, "r", "", "Vault role_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")
 	root.PersistentFlags().StringP(conf.FLAG_VAULT_AUTH_APPROLE_SECRET_ID, "s", "", "Vault secret_id to use for AppRole login. Can not be used in conjuction with Vault token flag.")

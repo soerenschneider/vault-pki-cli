@@ -6,6 +6,7 @@ const (
 
 	FLAG_VAULT_ADDRESS                     = "vault-address"
 	FLAG_VAULT_AUTH_TOKEN                  = "vault-auth-token"
+	FLAG_VAULT_AUTH_IMPLICIT               = "vault-auth-implicit"
 	FLAG_VAULT_AUTH_K8S_ROLE               = "vault-auth-k8s"
 	FLAG_VAULT_AUTH_APPROLE_ID             = "vault-auth-role-id"
 	FLAG_VAULT_AUTH_APPROLE_SECRET_ID      = "vault-auth-secret-id"

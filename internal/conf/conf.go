@@ -16,6 +16,7 @@ var sensitiveVars = map[string]struct{}{
 type Config struct {
 	VaultAddress      string `mapstructure:"vault-address"`
 	VaultToken        string `mapstructure:"vault-auth-token"`
+	VaultAuthImplicit bool   `mapstructure:"vault-auth-implicit"`
 	VaultAuthK8sRole  string `mapstructure:"vault-auth-k8s-role"`
 	VaultRoleId       string `mapstructure:"vault-auth-role-id"`
 	VaultSecretId     string `mapstructure:"vault-auth-secret-id"`
@@ -81,6 +82,9 @@ func (c *Config) Validate() []error {
 		numAuthMethodsProvided += 1
 	}
 	if !emptyVaultAuthK8sRole {
+		numAuthMethodsProvided += 1
+	}
+	if c.VaultAuthImplicit {
 		numAuthMethodsProvided += 1
 	}
 
