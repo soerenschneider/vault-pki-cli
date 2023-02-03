@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.4...v1.11.0) (2023-02-03)
+
+
+### Features
+
+* Add implicit auth mechanism ([e406c4d](https://github.com/soerenschneider/vault-pki-cli/commit/e406c4da6137e1b8051753cf2e8b2154f301555b))
+
 ## [1.10.4](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.3...v1.10.4) (2023-01-17)
 
 
