@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.0...v1.11.1) (2023-02-14)
+
+
+### Bug Fixes
+
+* fix implicit auth ([6126f4b](https://github.com/soerenschneider/vault-pki-cli/commit/6126f4b6ac5d307c4913825e829aa407074dd503))
+* make expanding user dirs work ([da334fe](https://github.com/soerenschneider/vault-pki-cli/commit/da334fe3a47e7257290bf5d7d2b35e2ffb8f53f7))
+
 ## [1.11.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.10.4...v1.11.0) (2023-02-03)
 
 
