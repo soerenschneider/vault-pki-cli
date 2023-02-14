@@ -34,13 +34,15 @@ func (t *TokenImplicitAuth) Authenticate() (string, error) {
 
 	tokenPath := path.Join(dirname, tokenFile)
 	if _, err := os.Stat(tokenPath); errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("file '%s' to read vault token from does not exist", tokenFile)
+		return "", fmt.Errorf("file '%s' to read vault token from does not exist", tokenPath)
 	}
 
 	read, err := os.ReadFile(tokenPath)
-	return "", fmt.Errorf("error reading file '%s': %v", tokenFile, err)
+	if err != nil {
+		return "", fmt.Errorf("error reading file '%s': %v", tokenPath, err)
+	}
 
-	log.Info().Msgf("Using vault token from file '%s'", tokenFile)
+	log.Info().Msgf("Using vault token from file '%s'", tokenPath)
 	return string(read), nil
 }
 
