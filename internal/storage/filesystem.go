@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"net/url"
 	"os"
 	"os/user"
@@ -32,11 +33,19 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 		return nil, err
 	}
 
-	if len(parsed.Host) > 0 {
+	path := parsed.Path
+	if parsed.Host == "~" || parsed.Host == "$HOME" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("tried to expand '%s' but homeDir could not be detected: %v", parsed.Host, err)
+		}
+
+		orig := filepath.Join(parsed.Host, path)
+		path = filepath.Join(homeDir, orig[len(parsed.Host):])
+		log.Info().Msgf("Expanded path '%s' to '%s'", orig, path)
+	} else if len(parsed.Host) > 0 {
 		return nil, fmt.Errorf("invalid syntax for uri, no host expected: '%s' (did you forget the leading '/'?)", uri)
 	}
-
-	path := parsed.Path
 
 	var username, pass string
 	userData := parsed.User
