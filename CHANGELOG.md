@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.1...v1.11.2) (2023-04-19)
+
+
+### Bug Fixes
+
+* expand config path ([e4381fe](https://github.com/soerenschneider/vault-pki-cli/commit/e4381fee318453387fac39cd634e3892f8b3af66))
+* respect '--force-new-certificate' flag ([882f83f](https://github.com/soerenschneider/vault-pki-cli/commit/882f83fb524c5aaec22250122c49929a6e9b9c6e))
+
 ## [1.11.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.0...v1.11.1) (2023-02-14)
 
 
