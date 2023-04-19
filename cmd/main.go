@@ -6,6 +6,8 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/spf13/pflag"
 	"os"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -76,6 +78,27 @@ func main() {
 	}
 }
 
+func expandPath(path string) string {
+	if !strings.Contains(path, "~") {
+		return path
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return path
+	}
+
+	dir := usr.HomeDir
+
+	if path == "~" {
+		return dir
+	} else if strings.HasPrefix(path, "~/") {
+		return filepath.Join(dir, path[2:])
+	}
+
+	return path
+}
+
 func config() (*conf.Config, error) {
 	viper.SetDefault(conf.FLAG_VAULT_PKI_MOUNT, conf.FLAG_VAULT_MOUNT_PKI_DEFAULT)
 	viper.SetDefault(conf.FLAG_VAULT_APPROLE_MOUNT, conf.FLAG_VAULT_MOUNT_APPROLE_DEFAULT)
@@ -87,7 +110,7 @@ func config() (*conf.Config, error) {
 	viper.AddConfigPath("/etc/vault-pki-cli/")
 
 	if viper.IsSet(conf.FLAG_CONFIG_FILE) {
-		configFile := viper.GetString(conf.FLAG_CONFIG_FILE)
+		configFile := expandPath(viper.GetString(conf.FLAG_CONFIG_FILE))
 		log.Info().Msgf("Trying to read config from '%s'", configFile)
 		viper.SetConfigFile(configFile)
 	}
