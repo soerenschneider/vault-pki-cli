@@ -38,7 +38,7 @@ type Config struct {
 	MetricsFile string `mapstructure:"metrics-file"`
 	MetricsAddr string `mapstructure:"metrics-addr"`
 
-	ForceNewCertificate bool
+	ForceNewCertificate bool                `mapstructure:"force-new-certificate"`
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
 	PostHooks                              []string `mapstructure:"post-hooks""`
