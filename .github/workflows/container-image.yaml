@@ -32,7 +32,7 @@ jobs:
           
       - name: Extract metadata for container
         id: gcr
-        uses: docker/metadata-action@v4.4.0
+        uses: docker/metadata-action@v4.6.0
         with:
           images: ${{ env.GH_REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
