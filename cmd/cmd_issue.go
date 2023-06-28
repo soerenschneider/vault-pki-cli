@@ -197,8 +197,8 @@ func issueCert(config *conf.Config) (errors []error) {
 		}
 	}
 
-	rand.Seed(time.Now().UnixNano())
-	if rand.Intn(100) >= 90 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404
+	if r.Intn(100) >= 90 {
 		log.Info().Msgf("Tidying up certificate storage")
 		err := pkiImpl.Tidy()
 		if err != nil {

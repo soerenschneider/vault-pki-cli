@@ -61,7 +61,7 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	}
 	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
 	if len(config.MetricsFile) > 0 {
-		internal.WriteMetrics(config.MetricsFile)
+		_ = internal.WriteMetrics(config.MetricsFile)
 	}
 
 	if len(errs) > 0 {
@@ -116,8 +116,8 @@ func signCert(config *conf.Config) (errors []error) {
 		errors = append(errors, err)
 	}
 
-	rand.Seed(time.Now().UnixNano())
-	if rand.Intn(100) >= 90 {
+	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404
+	if r.Intn(100) >= 90 {
 		log.Info().Msgf("Tidying up certificate storage")
 		err := pkiImpl.Tidy()
 		if err != nil {
