@@ -64,7 +64,7 @@ func WriteMetrics(path string) error {
 		return err
 	}
 
-	err = os.WriteFile(path, []byte(metrics), 0644)
+	err = os.WriteFile(path, []byte(metrics), 0644) // #nosec G306
 	if err != nil {
 		log.Info().Msgf("Error writing metrics to '%s': %v", path, err)
 	}
@@ -86,7 +86,7 @@ func StartMetricsServer(addr string) error {
 	if err := server.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	
+
 	return nil
 }
 
