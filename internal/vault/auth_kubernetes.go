@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	defaultServiceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	defaultServiceAccountTokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token" // #nosec G101
 	defaultMount                   = "kubernetes"
 )
 
