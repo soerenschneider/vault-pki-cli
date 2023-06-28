@@ -32,7 +32,7 @@ func getIssueCmd() *cobra.Command {
 	var issueCmd = &cobra.Command{
 		Use:   "issue",
 		Short: "Issue a x509 cert",
-		RunE:  issueCertEntryPoint,
+		Run:   issueCertEntryPoint,
 	}
 
 	issueCmd.Flags().BoolP(conf.FLAG_ISSUE_FORCE_NEW_CERTIFICATE, "", false, "Issue a new certificate regardless of the current certificate's lifetime")
@@ -59,12 +59,12 @@ func getIssueCmd() *cobra.Command {
 	return issueCmd
 }
 
-func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
+func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 
 	config, err := config()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("could not get config")
 	}
 
 	config.Print()
@@ -73,7 +73,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 		log.Info().Msgf("Starting metrics server at '%s'", config.MetricsAddr)
 		go func() {
 			if err := internal.StartMetricsServer(config.MetricsAddr); err != nil {
-				log.Fatal().Err(err).Msg("")
+				log.Fatal().Err(err).Msg("could not start metrics server")
 			}
 		}()
 	}
@@ -120,14 +120,12 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 		case <-interrupt:
 			log.Info().Msg("Received signal")
 			if len(errs) > 0 {
-				return fmt.Errorf("encountered errors: %v", errs)
+				log.Fatal().Msgf("encountered errors: %v", errs)
 			}
-			return nil
 		case <-done:
 			if len(errs) > 0 {
-				return fmt.Errorf("encountered errors: %v", errs)
+				log.Fatal().Msgf("encountered errors: %v", errs)
 			}
-			return nil
 		case <-ticker.C:
 			continue
 		}

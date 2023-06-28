@@ -23,7 +23,7 @@ func getSignCmd() *cobra.Command {
 	var signCmd = &cobra.Command{
 		Use:   "sign",
 		Short: "Sign a CSR",
-		RunE:  signCertEntryPoint,
+		Run:   signCertEntryPoint,
 	}
 
 	signCmd.PersistentFlags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "File to write the certificate to")
@@ -49,12 +49,12 @@ func getSignCmd() *cobra.Command {
 	return signCmd
 }
 
-func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
+func signCertEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 
 	config, err := config()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("could not get config")
 	}
 
 	storage.InitBuilder(config)
@@ -67,16 +67,14 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	}
 	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
 	if len(config.MetricsFile) > 0 {
-		err := internal.WriteMetrics(config.MetricsFile)
-		if err != nil {
+		if err := internal.WriteMetrics(config.MetricsFile); err != nil {
 			log.Error().Err(err).Msg("could not write metrics")
 		}
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("encountered errors: %v", errs)
+		log.Fatal().Msgf("encountered errors: %v", errs)
 	}
-	return nil
 }
 
 func signCert(config *conf.Config) (errors []error) {

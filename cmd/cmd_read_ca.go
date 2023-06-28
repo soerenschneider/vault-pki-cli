@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -14,7 +13,7 @@ func readCaCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-ca",
 		Short: "ReadCert pki ca cert from vault",
-		RunE:  readCaEntryPoint,
+		Run:   readCaEntryPoint,
 	}
 
 	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature ca certificate to this output file")
@@ -26,33 +25,33 @@ func readCaCmd() *cobra.Command {
 	return getCaCmd
 }
 
-func readCaEntryPoint(ccmd *cobra.Command, args []string) error {
+func readCaEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("could not get config")
 	}
 
 	if len(config.VaultAddress) == 0 {
-		return errors.New("missing vault address, quitting")
+		log.Fatal().Msg("missing vault address, quitting")
 	}
 
 	if len(config.VaultMountPki) == 0 {
-		return errors.New("missing vault pki mount, quitting")
+		log.Fatal().Msg("missing vault pki mount, quitting")
 	}
 
 	storage.InitBuilder(config)
 	certData, err := vault.FetchCert(config.VaultAddress, config.VaultMountPki, config.DerEncoded)
 	if err != nil {
-		log.Error().Msgf("Could not read cert data from vault: %v", err)
-		return err
+		log.Fatal().Err(err).Msgf("Could not read cert data from vault: %v", err)
 	}
 
 	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
 	if err != nil {
-		log.Error().Msgf("could not build ca sink from config: %v", err)
-		return err
+		log.Fatal().Err(err).Msgf("could not build ca sink from config: %v", err)
 	}
 
-	return sink.WriteCa(certData)
+	if err = sink.WriteCa(certData); err != nil {
+		log.Fatal().Err(err).Msgf("could not write ca: %v", err)
+	}
 }

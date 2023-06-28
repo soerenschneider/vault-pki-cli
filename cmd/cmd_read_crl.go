@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -15,7 +13,7 @@ func readCrlCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-crl",
 		Short: "ReadCert pki crl from vault",
-		RunE:  readCrlEntryPoint,
+		Run:   readCrlEntryPoint,
 	}
 
 	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature CRL to this file")
@@ -27,31 +25,32 @@ func readCrlCmd() *cobra.Command {
 	return getCaCmd
 }
 
-func readCrlEntryPoint(ccmd *cobra.Command, args []string) error {
+func readCrlEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("could not get config")
 	}
 
 	if len(config.VaultAddress) == 0 {
-		return errors.New("missing vault address, quitting")
+		log.Fatal().Msg("missing vault address, quitting")
 	}
 
 	if len(config.VaultMountPki) == 0 {
-		return errors.New("missing vault pki mount, quitting")
+		log.Fatal().Msg("missing vault pki mount, quitting")
 	}
 
 	storage.InitBuilder(config)
 	crlData, err := vault.FetchCrl(config.VaultAddress, config.VaultMountPki, config.DerEncoded)
 	if err != nil {
-		return fmt.Errorf("could not fetch crl from vault: %v", err)
 	}
 
 	sink, err := sink.CrlSinkFromConfig(config.StorageConfig)
 	if err != nil {
-		return fmt.Errorf("could not build crl sink from config: %v", err)
+		log.Fatal().Err(err).Msg("could not build crl sink from config")
 	}
 
-	return sink.WriteCrl(crlData)
+	if err = sink.WriteCrl(crlData); err != nil {
+		log.Fatal().Err(err).Msg("could not write crl")
+	}
 }
