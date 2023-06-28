@@ -64,6 +64,9 @@ func revokeCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	}
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
+	if err != nil {
+		return fmt.Errorf("could not build keypair: %w", err)
+	}
 
 	content, err := sink.ReadCert()
 	if err != nil {
