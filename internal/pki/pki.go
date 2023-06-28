@@ -190,7 +190,7 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	}
 
 	if !changed {
-		changed = bytes.Compare(certData.Raw, x509Cert.Raw) != 0
+		changed = !bytes.Equal(certData.Raw, x509Cert.Raw)
 	}
 
 	err = format.WriteCert(cert)
