@@ -17,7 +17,7 @@ const (
 	acmevaultKeyPrivateKey  = "private_key"
 	acmevaultKeyCertificate = "cert"
 	acmevaultKeyIssuer      = "dummyIssuer"
-	
+
 	// the secret name (without the path) of the certificate saved by acmevault
 	acmevaultKv2SecretNameCertificate = "certificate"
 	// the secret name (without the path) of the private key saved by acmevault
