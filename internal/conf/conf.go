@@ -41,7 +41,7 @@ type Config struct {
 	ForceNewCertificate bool                `mapstructure:"force-new-certificate"`
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
-	PostHooks                              []string `mapstructure:"post-hooks""`
+	PostHooks                              []string `mapstructure:"post-hooks"`
 	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool
