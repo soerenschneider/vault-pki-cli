@@ -64,7 +64,7 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 		internal.WriteMetrics(config.MetricsFile)
 	}
 
-	if len(errs) == 0 {
+	if len(errs) > 0 {
 		return fmt.Errorf("encountered errors: %v", errs)
 	}
 	return nil
