@@ -5,12 +5,12 @@ const (
 	FLAG_DEBUG       = "debug"
 
 	FLAG_VAULT_ADDRESS                     = "vault-address"
-	FLAG_VAULT_AUTH_TOKEN                  = "vault-auth-token"
+	FLAG_VAULT_AUTH_TOKEN                  = "vault-auth-token" // #nosec G101
 	FLAG_VAULT_AUTH_IMPLICIT               = "vault-auth-implicit"
 	FLAG_VAULT_AUTH_K8S_ROLE               = "vault-auth-k8s"
 	FLAG_VAULT_AUTH_APPROLE_ID             = "vault-auth-role-id"
-	FLAG_VAULT_AUTH_APPROLE_SECRET_ID      = "vault-auth-secret-id"
-	FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE = "vault-auth-secret-id-file"
+	FLAG_VAULT_AUTH_APPROLE_SECRET_ID      = "vault-auth-secret-id"      // #nosec G101
+	FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE = "vault-auth-secret-id-file" // #nosec G101
 	FLAG_VAULT_APPROLE_MOUNT               = "vault-approle-mount"
 	FLAG_VAULT_PKI_MOUNT                   = "vault-pki-mount"
 	FLAG_VAULT_PKI_BACKEND_ROLE            = "vault-pki-role-name"
