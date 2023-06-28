@@ -71,7 +71,11 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 
 	if config.Daemonize && len(config.MetricsAddr) > 0 {
 		log.Info().Msgf("Starting metrics server at '%s'", config.MetricsAddr)
-		go internal.StartMetricsServer(config.MetricsAddr)
+		go func() {
+			if err := internal.StartMetricsServer(config.MetricsAddr); err != nil {
+				log.Fatal().Err(err).Msg("")
+			}
+		}()
 	}
 
 	errors := config.ValidateIssue()

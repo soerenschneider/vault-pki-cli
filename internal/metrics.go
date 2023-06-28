@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
@@ -69,12 +71,23 @@ func WriteMetrics(path string) error {
 	return err
 }
 
-func StartMetricsServer(addr string) {
-	http.Handle("/metrics", promhttp.Handler())
-	err := http.ListenAndServe(addr, nil)
-	if err != nil {
-		log.Fatal().Msgf("can not start metrics server at %s: %v", addr, err)
+func StartMetricsServer(addr string) error {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	server := http.Server{
+		Addr:              addr,
+		ReadTimeout:       3 * time.Second,
+		WriteTimeout:      3 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+		IdleTimeout:       90 * time.Second,
 	}
+
+	if err := server.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	
+	return nil
 }
 
 func dumpMetrics() (string, error) {
