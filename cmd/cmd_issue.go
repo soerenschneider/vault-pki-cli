@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
@@ -86,7 +87,7 @@ func issueCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	defer ticker.Stop()
 
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, os.Kill)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
 
 	var errs []error
