@@ -61,7 +61,10 @@ func signCertEntryPoint(ccmd *cobra.Command, args []string) error {
 	}
 	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
 	if len(config.MetricsFile) > 0 {
-		_ = internal.WriteMetrics(config.MetricsFile)
+		err := internal.WriteMetrics(config.MetricsFile)
+		if err != nil {
+			log.Error().Err(err).Msg("could not write metrics")
+		}
 	}
 
 	if len(errs) > 0 {

@@ -56,7 +56,10 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 	}
 	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
 	if !config.Daemonize && len(config.MetricsFile) > 0 {
-		internal.WriteMetrics(config.MetricsFile)
+		err := internal.WriteMetrics(config.MetricsFile)
+		if err != nil {
+			log.Error().Err(err).Msg("could not write metrics")
+		}
 	}
 }
 
