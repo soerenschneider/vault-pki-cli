@@ -3,6 +3,7 @@ package pki
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math"
@@ -34,6 +35,7 @@ type Pki interface {
 	// Revoke revokes a certificate by its serial number
 	Revoke(serial string) error
 
+	// ReadAcme reads a previously acquired letsencrypt certificate from Vault
 	ReadAcme(commonName string, config *conf.Config) (*CertData, error)
 
 	// Tidy cleans up the PKI blob storage of dangling certificates
@@ -134,16 +136,6 @@ func updateCertificateMetrics(cert *x509.Certificate) {
 	internal.MetricCertLifetimePercent.WithLabelValues(cert.Subject.CommonName).Set(percentage)
 }
 
-func shouldIssueNewCertificate(x509Cert *x509.Certificate, strategy issue_strategies.IssueStrategy) (bool, error) {
-	if x509Cert == nil {
-		return true, errors.New("empty cert provided")
-	}
-
-	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(x509Cert.SerialNumber))
-	updateCertificateMetrics(x509Cert)
-	return strategy.Renew(x509Cert)
-}
-
 func (p *PkiCli) Revoke(serial string) error {
 	log.Info().Msgf("Attempting to revoke certificate %s", serial)
 	err := p.pkiImpl.Revoke(serial)
@@ -210,20 +202,38 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	return changed, nil
 }
 
-func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error) {
-	defer p.cleanup()
-	certData, err := format.ReadCert()
-	if err == nil && certData != nil {
-		renew, err := shouldIssueNewCertificate(certData, p.strategy)
-		if err == nil && !renew {
-			log.Info().Msg("Not renewing certificate: certificate does not need renewal, yet")
-			return NotNeeded, nil
-		}
-		if err != nil {
-			log.Error().Msgf("Got error while deciding whether to renew certificate, proceeding to renew: %v", err)
+func (p *PkiCli) shouldIssue(format IssueSink) (bool, error) {
+	cert, err := format.ReadCert()
+	if err != nil || cert == nil {
+		if errors.Is(err, ErrNoCertFound) {
+			log.Info().Msg("No existing certificate found")
+			return true, nil
+		} else {
+			log.Warn().Msgf("Could not read certificate: %v", err)
+			return true, err
 		}
 	}
-	log.Info().Msgf("Could not read certificate: %v", err)
+
+	if err = p.Verify(cert); err != nil {
+		return true, fmt.Errorf("cert exists but can not be verified against ca: %w", err)
+	}
+
+	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(cert.SerialNumber))
+	updateCertificateMetrics(cert)
+	return p.strategy.Renew(cert)
+}
+
+func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error) {
+	defer p.cleanup()
+
+	shouldIssue, err := p.shouldIssue(format)
+	if err == nil && !shouldIssue {
+		log.Info().Msg("Cert exists and does not need a renewal")
+		return NotNeeded, nil
+	} else {
+		log.Warn().Err(err).Msg("Going to renew certificate")
+	}
+
 	log.Info().Msg("Issuing new certificate")
 	cert, err := p.pkiImpl.Issue(opts)
 	if err != nil {
@@ -247,6 +257,37 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 	}
 
 	return Issued, nil
+}
+
+func (p *PkiCli) Verify(cert *x509.Certificate) error {
+	caData, err := p.pkiImpl.FetchCaChain()
+	if err != nil {
+		return err
+	}
+
+	caBlock, _ := pem.Decode(caData)
+	ca, err := x509.ParseCertificate(caBlock.Bytes)
+	if err == nil {
+		return err
+	}
+
+	log.Info().Msgf("Received CA with serial %s", pkg.FormatSerial(ca.SerialNumber))
+	return verifyCertAgainstCa(cert, ca)
+}
+
+func verifyCertAgainstCa(cert, ca *x509.Certificate) error {
+	if cert == nil || ca == nil {
+		return errors.New("empty cert(s) supplied")
+	}
+
+	certPool := x509.NewCertPool()
+	certPool.AddCert(ca)
+
+	verifyOptions := x509.VerifyOptions{
+		Roots: certPool,
+	}
+	_, err := cert.Verify(verifyOptions)
+	return err
 }
 
 func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
