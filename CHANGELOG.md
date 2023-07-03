@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.12.0...v1.13.0) (2023-07-03)
+
+
+### Features
+
+* drop clunky support for yubikeys (use CSRs instead) ([96cf92c](https://github.com/soerenschneider/vault-pki-cli/commit/96cf92c0c993e46dbebc490ed6d28f5a556d8447))
+* drop support for openbsd ([850c547](https://github.com/soerenschneider/vault-pki-cli/commit/850c547f46937e50197b1f10572d27ed4b04b10c))
+
+
+### Bug Fixes
+
+* fix error handling logic ([7338ef1](https://github.com/soerenschneider/vault-pki-cli/commit/7338ef1646cbf889e8ad31a9f8cc33a370e0fef1))
+
 ## [1.12.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.2...v1.12.0) (2023-07-03)
 
 
