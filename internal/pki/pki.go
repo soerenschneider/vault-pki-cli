@@ -41,6 +41,15 @@ type Pki interface {
 
 	// Cleanup cleans up the used resources of the client is not related to PKI operations
 	Cleanup() error
+
+	// FetchCa returns the CA for the configured mount
+	FetchCa(binary bool) ([]byte, error)
+
+	// FetchCaChain returns the whole CA chain for the configured mount
+	FetchCaChain() ([]byte, error)
+
+	// FetchCrl returns the CRL of the configured mount
+	FetchCrl(binary bool) ([]byte, error)
 }
 
 type CertData struct {
