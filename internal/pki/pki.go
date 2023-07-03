@@ -267,7 +267,7 @@ func (p *PkiCli) Verify(cert *x509.Certificate) error {
 
 	caBlock, _ := pem.Decode(caData)
 	ca, err := x509.ParseCertificate(caBlock.Bytes)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 
