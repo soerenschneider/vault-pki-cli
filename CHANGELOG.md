@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.12.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.2...v1.12.0) (2023-07-03)
+
+
+### Features
+
+* verify that cert on disk belongs to ca ([047f804](https://github.com/soerenschneider/vault-pki-cli/commit/047f804ede7e3557e8183aa34f664ba8ee2eec8c))
+
+
+### Bug Fixes
+
+* add methods to interface ([0e27785](https://github.com/soerenschneider/vault-pki-cli/commit/0e2778532929a57094039815c311967ed264ff2b))
+* check err value ([f658a47](https://github.com/soerenschneider/vault-pki-cli/commit/f658a47209cc337cfb15cd80a7a4d9a50e4ccbd8))
+* check errors ([dd7f235](https://github.com/soerenschneider/vault-pki-cli/commit/dd7f235a1b05136b16c6c6cd03120d716a779211))
+* fix catching the correct signal ([8ae574b](https://github.com/soerenschneider/vault-pki-cli/commit/8ae574b787bd3bb7441d3de746a98e0debb3f80c))
+* fix logic ([decc702](https://github.com/soerenschneider/vault-pki-cli/commit/decc70202de4ef4ece537ec2a2c707543ac20f48))
+* fix tag format ([19f9744](https://github.com/soerenschneider/vault-pki-cli/commit/19f97440e33f2189e99c474936a8c5cbb9c9e4a3))
+* handle errors ([7915450](https://github.com/soerenschneider/vault-pki-cli/commit/7915450dcac44c454aaf875626d07f5c3f50c00b))
+* return after work ([a57cb01](https://github.com/soerenschneider/vault-pki-cli/commit/a57cb01050f0b5a949d3ec31c0b60992cb452b38))
+* set timeouts for http server ([2bd9d6f](https://github.com/soerenschneider/vault-pki-cli/commit/2bd9d6fe1fe196cd92a4084b93ff828d345acec0))
+
 ## [1.11.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.11.1...v1.11.2) (2023-04-19)
 
 
