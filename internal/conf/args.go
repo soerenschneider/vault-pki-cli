@@ -22,9 +22,6 @@ const (
 	FLAG_ISSUE_BACKEND_CONFIG                = "backend-config"
 	FLAG_READACME_ACME_PREFIX                = "acme-prefix"
 
-	FLAG_ISSUE_YUBIKEY_SLOT = "yubi-slot"
-	FLAG_ISSUE_YUBIKEY_PIN  = "yubi-pin"
-
 	FLAG_ISSUE_TTL          = "ttl"
 	FLAG_ISSUE_DAEMONIZE    = "daemonize"
 	FLAG_ISSUE_IP_SANS      = "ip-sans"

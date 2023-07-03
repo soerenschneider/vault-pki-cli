@@ -42,5 +42,5 @@ func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, err
 }
 
 func PrintVersionInfo() {
-	log.Info().Msgf("Version %s (%s), YubikeySupport=%s", internal.BuildVersion, internal.CommitHash, internal.YubiKeySupport)
+	log.Info().Msgf("Version %s (%s)", internal.BuildVersion, internal.CommitHash)
 }
