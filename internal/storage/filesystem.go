@@ -3,7 +3,10 @@ package storage
 import (
 	"errors"
 	"fmt"
+
 	"github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+
 	"net/url"
 	"os"
 	"os/user"
@@ -118,7 +121,15 @@ func newFilesystemStorage(path, owner, group string, mode os.FileMode) (*Filesys
 }
 
 func (fs *FilesystemStorage) Read() ([]byte, error) {
-	return os.ReadFile(fs.FilePath)
+	data, err := os.ReadFile(fs.FilePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, pki.ErrNoCertFound
+		}
+		return nil, err
+	}
+
+	return data, nil
 }
 
 func (fs *FilesystemStorage) CanRead() error {

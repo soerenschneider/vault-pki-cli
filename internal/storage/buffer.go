@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"fmt"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 )
 
 type BufferPod struct {
@@ -12,14 +12,15 @@ func (b *BufferPod) Read() ([]byte, error) {
 	if len(b.Data) > 0 {
 		return b.Data, nil
 	}
-	return nil, fmt.Errorf("empty buffer")
+	return nil, pki.ErrNoCertFound
 }
 
 func (b *BufferPod) CanRead() error {
 	if len(b.Data) > 0 {
 		return nil
 	}
-	return fmt.Errorf("empty buffer")
+
+	return pki.ErrNoCertFound
 }
 
 func (b *BufferPod) Write(data []byte) error {
