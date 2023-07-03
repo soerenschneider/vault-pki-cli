@@ -122,10 +122,12 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 			if len(errs) > 0 {
 				log.Fatal().Msgf("encountered errors: %v", errs)
 			}
+			return
 		case <-done:
 			if len(errs) > 0 {
 				log.Fatal().Msgf("encountered errors: %v", errs)
 			}
+			return
 		case <-ticker.C:
 			continue
 		}
