@@ -29,9 +29,6 @@ cross-build:
 	GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=0 go build -ldflags="-X '$(MODULE)/internal.BuildVersion=${VERSION}' -X '$(MODULE)/internal.CommitHash=${COMMIT_HASH}'" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-armv6     ./cmd
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0       go build -ldflags="-X '$(MODULE)/internal.BuildVersion=${VERSION}' -X '$(MODULE)/internal.CommitHash=${COMMIT_HASH}'" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-aarch64   ./cmd
 
-docker-build:
-	docker build -t "$(DOCKER_PREFIX)/acmevault-server" --build-arg MODE=server .
-
 version-info:
 	$(eval VERSION := $(shell git describe --tags --abbrev=0 || echo "dev"))
 	$(eval COMMIT_HASH := $(shell git rev-parse HEAD))
