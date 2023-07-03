@@ -37,6 +37,10 @@ func getSignCmd() *cobra.Command {
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
 
+	signCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	signCmd.MarkFlagRequired(conf.FLAG_CSR_FILE)
+	signCmd.MarkFlagRequired(conf.FLAG_ISSUE_COMMON_NAME)
+
 	return signCmd
 }
 
