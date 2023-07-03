@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	v1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -50,6 +53,9 @@ func NewK8sConfigmapStorage(client *kubernetes.Clientset, name string, opts ...K
 func (fs *K8sConfigmapStorage) Read() ([]byte, error) {
 	configMap, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return nil, pki.ErrNoCertFound
+		}
 		return nil, err
 	}
 
@@ -64,6 +70,9 @@ func (fs *K8sConfigmapStorage) Read() ([]byte, error) {
 func (fs *K8sConfigmapStorage) CanRead() error {
 	_, err := fs.client.CoreV1().ConfigMaps(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return pki.ErrNoCertFound
+		}
 		return err
 	}
 

@@ -1,13 +1,15 @@
 package main
 
 import (
+	"os"
+
+	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func readCaChainCmd() *cobra.Command {
@@ -40,8 +42,18 @@ func fetchCaChainEntryPoint(_ *cobra.Command, _ []string) {
 		log.Fatal().Msgf("missing vault pki mount, quitting")
 	}
 
+	vaultClient, err := api.NewClient(getVaultConfig(config))
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not build vault client")
+	}
+
+	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not build rotation client")
+	}
+
 	storage.InitBuilder(config)
-	certData, err := vault.FetchCertChain(config.VaultAddress, config.VaultMountPki)
+	certData, err := pkiImpl.FetchCaChain()
 	if err != nil {
 		os.Exit(1)
 	}

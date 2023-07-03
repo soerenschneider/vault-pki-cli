@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -40,9 +41,20 @@ func readCrlEntryPoint(_ *cobra.Command, _ []string) {
 		log.Fatal().Msg("missing vault pki mount, quitting")
 	}
 
-	storage.InitBuilder(config)
-	crlData, err := vault.FetchCrl(config.VaultAddress, config.VaultMountPki, config.DerEncoded)
+	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
+		log.Fatal().Err(err).Msgf("could not build vault client")
+	}
+
+	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("could not build rotation client")
+	}
+
+	storage.InitBuilder(config)
+	crlData, err := pkiImpl.FetchCrl(config.DerEncoded)
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not fetch crl")
 	}
 
 	sink, err := sink.CrlSinkFromConfig(config.StorageConfig)

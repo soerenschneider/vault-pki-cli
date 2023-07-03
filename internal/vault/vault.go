@@ -4,12 +4,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"strings"
+	"time"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"strings"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -325,4 +329,39 @@ func (c *VaultClient) Issue(opts *conf.Config) (*pki.CertData, error) {
 
 func (c *VaultClient) Cleanup() error {
 	return c.auth.Cleanup()
+}
+
+func (c *VaultClient) FetchCa(binary bool) ([]byte, error) {
+	path := fmt.Sprintf("%s/ca", c.mountPath)
+	if !binary {
+		path = path + "/pem"
+	}
+
+	return c.readRaw(path)
+}
+
+func (c *VaultClient) FetchCaChain() ([]byte, error) {
+	path := fmt.Sprintf("/%s/ca_chain", c.mountPath)
+	return c.readRaw(path)
+}
+
+func (c *VaultClient) FetchCrl(binary bool) ([]byte, error) {
+	path := fmt.Sprintf("%s/crl", c.mountPath)
+	if !binary {
+		path += "/pem"
+	}
+
+	return c.readRaw(path)
+}
+
+func (c *VaultClient) readRaw(path string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	secret, err := c.client.Logical().ReadRawWithContext(ctx, path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return io.ReadAll(secret.Body)
 }
