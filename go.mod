@@ -1,6 +1,6 @@
 module github.com/soerenschneider/vault-pki-cli
 
-go 1.18
+go 1.19
 
 require (
 	github.com/hashicorp/vault/api v1.9.2
