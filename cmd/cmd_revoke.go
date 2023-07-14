@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -27,48 +26,31 @@ func getRevokeCmd() *cobra.Command {
 func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get config")
-	}
+	DieOnErr(err, "could not get config")
 
-	if err = config.Validate(); err != nil {
-		log.Fatal().Err(err).Msg("invalid config")
-	}
+	err = config.Validate()
+	DieOnErr(err, "invalid config")
 
 	storage.InitBuilder(config)
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build vault client")
-	}
+	DieOnErr(err, "could not build vault client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build auth strategy")
-	}
+	DieOnErr(err, "could not build auth strategy")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build rotation client")
-	}
+	DieOnErr(err, "could not build rotation client")
 
 	pkiImpl, err := pki.NewPki(vaultBackend, nil)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build pki impl")
-	}
+	DieOnErr(err, "could not build pki impl")
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build keypair")
-	}
+	DieOnErr(err, "could not build keypair")
 
 	content, err := sink.ReadCert()
-	if err != nil {
-		log.Fatal().Err(err).Msgf("can not read certificate")
-	}
+	DieOnErr(err, "can not read certificate")
 
 	serial := pkg.FormatSerial(content.SerialNumber)
-	if err = pkiImpl.Revoke(serial); err != nil {
-		log.Fatal().Err(err).Msg("could not revoke cert")
-	}
-
+	err = pkiImpl.Revoke(serial)
+	DieOnErr(err, "could not revoke cert")
 }

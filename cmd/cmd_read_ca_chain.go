@@ -1,10 +1,7 @@
 package main
 
 import (
-	"os"
-
 	"github.com/hashicorp/vault/api"
-	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
@@ -28,40 +25,21 @@ func readCaChainCmd() *cobra.Command {
 func fetchCaChainEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err)
-	}
-
-	if len(config.VaultAddress) == 0 {
-		log.Fatal().Msgf("missing vault address, quitting")
-	}
-
-	if len(config.VaultMountPki) == 0 {
-		log.Fatal().Msgf("missing vault pki mount, quitting")
-	}
+	DieOnErr(err, "can't get config")
 
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build vault client")
-	}
+	DieOnErr(err, "could not build vault client")
 
 	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build rotation client")
-	}
+	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
 	certData, err := pkiImpl.FetchCaChain()
-	if err != nil {
-		os.Exit(1)
-	}
+	DieOnErr(err, "can't fetch ca chain")
 
 	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build ca sink from config: %v", err)
-	}
+	DieOnErr(err, "could not build ca sink from config")
 
-	if err = sink.WriteCa(certData); err != nil {
-		log.Fatal().Err(err).Msg("could not write data")
-	}
+	err = sink.WriteCa(certData)
+	DieOnErr(err, "could not write data")
 }

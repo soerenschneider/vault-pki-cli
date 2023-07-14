@@ -63,24 +63,20 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get config")
-	}
+	DieOnErr(err, "could not get config")
 
 	config.Print()
 
 	if config.Daemonize && len(config.MetricsAddr) > 0 {
 		log.Info().Msgf("Starting metrics server at '%s'", config.MetricsAddr)
 		go func() {
-			if err := internal.StartMetricsServer(config.MetricsAddr); err != nil {
-				log.Fatal().Err(err).Msg("could not start metrics server")
-			}
+			err := internal.StartMetricsServer(config.MetricsAddr)
+			DieOnErr(err, "could not start metrics server")
 		}()
 	}
 
-	if err = config.ValidateIssue(); err != nil {
-		log.Fatal().Err(err).Msg("invalid config, errors")
-	}
+	err = config.ValidateIssue()
+	DieOnErr(err, "invalid config")
 
 	ticker := time.NewTicker(tickDuration)
 	defer ticker.Stop()
@@ -127,19 +123,13 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 
 func issueCert(config *conf.Config) error {
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build auth")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build vault pki")
 
 	var strat issue_strategies.IssueStrategy
 	if config.ForceNewCertificate {
@@ -152,14 +142,10 @@ func issueCert(config *conf.Config) error {
 	}
 
 	pkiImpl, err := pki.NewPki(vaultBackend, strat)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build pki impl")
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build sink")
 
 	var serial string
 	x509cert, err := sink.ReadCert()

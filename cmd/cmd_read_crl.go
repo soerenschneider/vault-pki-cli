@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
@@ -27,40 +26,21 @@ func readCrlCmd() *cobra.Command {
 func readCrlEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get config")
-	}
-
-	if len(config.VaultAddress) == 0 {
-		log.Fatal().Msg("missing vault address, quitting")
-	}
-
-	if len(config.VaultMountPki) == 0 {
-		log.Fatal().Msg("missing vault pki mount, quitting")
-	}
+	DieOnErr(err, "could not get config")
 
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build vault client")
-	}
+	DieOnErr(err, "could not build vault client")
 
 	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build rotation client")
-	}
+	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
 	crlData, err := pkiImpl.FetchCrl(config.DerEncoded)
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not fetch crl")
-	}
+	DieOnErr(err, "could not fetch crl")
 
 	sink, err := sink.CrlSinkFromConfig(config.StorageConfig)
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not build crl sink from config")
-	}
+	DieOnErr(err, "could not build crl sink from config")
 
-	if err = sink.WriteCrl(crlData); err != nil {
-		log.Fatal().Err(err).Msg("could not write crl")
-	}
+	err = sink.WriteCrl(crlData)
+	DieOnErr(err, "could not write crl")
 }

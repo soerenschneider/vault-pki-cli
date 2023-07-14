@@ -46,9 +46,7 @@ func signCertEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get config")
-	}
+	DieOnErr(err, "could not get config")
 
 	storage.InitBuilder(config)
 	err = signCert(config)
@@ -65,9 +63,7 @@ func signCertEntryPoint(_ *cobra.Command, _ []string) {
 		}
 	}
 
-	if err != nil {
-		log.Fatal().Err(err).Msg("encountered errors")
-	}
+	DieOnErr(err, "encountered errors")
 }
 
 func signCert(config *conf.Config) error {
@@ -76,29 +72,19 @@ func signCert(config *conf.Config) error {
 	}
 
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build vault client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build auth impl")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build vault pki")
 
 	pkiImpl, err := pki.NewPki(vaultBackend, &issue_strategies.StaticRenewal{Decision: false})
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build pki impl")
 
 	sink, err := sink.CsrSinkFromConfig(config.StorageConfig)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build sink")
 
 	err = pkiImpl.Sign(sink, config)
 

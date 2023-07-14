@@ -64,34 +64,22 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 
 func readAcmeCert(config *conf.Config) error {
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build auth")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build vault pki")
 
 	pkiImpl, err := pki.NewPki(vaultBackend, nil)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build pki impl")
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't build sink")
 
 	changed, err := pkiImpl.ReadAcme(sink, config)
-	if err != nil {
-		return err
-	}
+	DieOnErr(err, "can't read acme cert")
 
 	if !changed {
 		log.Info().Msg("No update detected, local certificate and remote cert identical")

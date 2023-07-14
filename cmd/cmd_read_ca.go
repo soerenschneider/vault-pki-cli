@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/hashicorp/vault/api"
-	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
@@ -27,40 +26,21 @@ func readCaCmd() *cobra.Command {
 func readCaEntryPoint(_ *cobra.Command, _ []string) {
 	PrintVersionInfo()
 	config, err := config()
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not get config")
-	}
-
-	if len(config.VaultAddress) == 0 {
-		log.Fatal().Msg("missing vault address, quitting")
-	}
-
-	if len(config.VaultMountPki) == 0 {
-		log.Fatal().Msg("missing vault pki mount, quitting")
-	}
+	DieOnErr(err, "could not get config")
 
 	vaultClient, err := api.NewClient(getVaultConfig(config))
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build vault client")
-	}
+	DieOnErr(err, "could not build vault client")
 
 	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build rotation client")
-	}
+	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
 	certData, err := pkiImpl.FetchCa(config.DerEncoded)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Could not read cert data from vault: %v", err)
-	}
+	DieOnErr(err, "Could not read cert data from vault")
 
 	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("could not build ca sink from config: %v", err)
-	}
+	DieOnErr(err, "could not build ca sink from config")
 
-	if err = sink.WriteCa(certData); err != nil {
-		log.Fatal().Err(err).Msgf("could not write ca: %v", err)
-	}
+	err = sink.WriteCa(certData)
+	DieOnErr(err, "could not write ca")
 }
