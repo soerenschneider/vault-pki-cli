@@ -211,7 +211,7 @@ func runPostIssueHooks(config *conf.Config) (errs []error) {
 	for _, hook := range config.PostHooks {
 		log.Info().Msgf("Running command '%s'", hook)
 		parsed := strings.Split(hook, " ")
-		cmd := exec.Command(parsed[0], parsed[1:]...)
+		cmd := exec.Command(parsed[0], parsed[1:]...) // #nosec G204
 		err := cmd.Run()
 		if err != nil {
 			errs = append(errs, errors.Errorf("error running command '%s': %v", parsed[0], err))
