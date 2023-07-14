@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/hashicorp/vault/api"
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
@@ -47,9 +46,9 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 	config.Print()
 
 	storage.InitBuilder(config)
-	errs := readAcmeCert(config)
-	if len(errs) > 0 {
-		log.Error().Msgf("reading cert not successful, %v", errs)
+	err = readAcmeCert(config)
+	if err != nil {
+		log.Error().Err(err).Msg("reading cert not successful")
 		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
 	} else {
 		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
@@ -63,49 +62,42 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 	}
 }
 
-func readAcmeCert(config *conf.Config) (errors []error) {
+func readAcmeCert(config *conf.Config) error {
 	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build vault client: %w", err))
-		return
+		return err
 	}
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build auth strategy: %w", err))
-		return
+		return err
 	}
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build rotation client: %w", err))
-		return
+		return err
 	}
 
 	pkiImpl, err := pki.NewPki(vaultBackend, nil)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build pki impl: %w", err))
-		return
+		return err
 	}
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("can't build certificate output: %w", err))
-		return
+		return err
 	}
 
 	changed, err := pkiImpl.ReadAcme(sink, config)
 	if err != nil {
-		log.Error().Msgf("could not read certificate: %v", err)
-		errors = append(errors, err)
+		return err
 	}
 
-	if changed {
-		log.Info().Msg("Detected update between local cert on disk and the read certificate")
-		runPostIssueHooks(config)
-	} else {
+	if !changed {
 		log.Info().Msg("No update detected, local certificate and remote cert identical")
+		return nil
 	}
 
-	return errors
+	log.Info().Msg("Detected update between local cert on disk and the read certificate")
+	return runPostIssueHooks(config)
 }
