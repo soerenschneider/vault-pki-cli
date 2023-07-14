@@ -2,10 +2,11 @@ package sink
 
 import (
 	"crypto/x509"
-	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"go.uber.org/multierr"
 )
 
 type MultiKeyPairSink struct {
@@ -30,18 +31,15 @@ func NewMultiKeyPairSink(sinks ...*KeyPairSink) (*MultiKeyPairSink, error) {
 }
 
 func (f *MultiKeyPairSink) WriteCert(certData *pki.CertData) error {
-	var errs []error
+	var err error
 	for _, sink := range f.sinks {
-		err := sink.WriteCert(certData)
-		if err != nil {
-			errs = append(errs, err)
+		writeErr := sink.WriteCert(certData)
+		if writeErr != nil {
+			err = multierr.Append(err, writeErr)
 		}
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("errors writing: %v", errs)
-	}
-	return nil
+	return err
 }
 
 func (f *MultiKeyPairSink) ReadCert() (*x509.Certificate, error) {
