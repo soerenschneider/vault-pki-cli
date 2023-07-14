@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -15,6 +14,7 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/spf13/viper"
+	"go.uber.org/multierr"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
@@ -89,12 +89,11 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
 
-	var errs []error
 	for {
 		storage.InitBuilder(config)
-		errs = issueCert(config)
-		if len(errs) > 0 {
-			log.Error().Msgf("issuing cert not successful, %v", errs)
+		err = issueCert(config)
+		if err != nil {
+			log.Error().Err(err).Msg("issuing cert not successful")
 			internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
 		} else {
 			internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
@@ -114,13 +113,10 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 		select {
 		case <-interrupt:
 			log.Info().Msg("Received signal")
-			if len(errs) > 0 {
-				log.Fatal().Msgf("encountered errors: %v", errs)
-			}
 			return
 		case <-done:
-			if len(errs) > 0 {
-				log.Fatal().Msgf("encountered errors: %v", errs)
+			if err != nil {
+				log.Fatal().Err(err).Msg("encountered errors")
 			}
 			return
 		case <-ticker.C:
@@ -129,23 +125,20 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	}
 }
 
-func issueCert(config *conf.Config) (errors []error) {
+func issueCert(config *conf.Config) error {
 	vaultClient, err := api.NewClient(getVaultConfig(config))
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build vault client: %v", err))
-		return
+		return err
 	}
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build auth strategy: %v", err))
-		return
+		return err
 	}
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build rotation client: %v", err))
-		return
+		return err
 	}
 
 	var strat issue_strategies.IssueStrategy
@@ -154,21 +147,18 @@ func issueCert(config *conf.Config) (errors []error) {
 	} else {
 		strat, err = issue_strategies.NewPercentage(config.CertificateLifetimeThresholdPercentage)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("could not build strategy: %v", err))
-			return
+			return err
 		}
 	}
 
 	pkiImpl, err := pki.NewPki(vaultBackend, strat)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("could not build pki impl: %v", err))
-		return
+		return err
 	}
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("can't build certificate output: %v", err))
-		return
+		return err
 	}
 
 	var serial string
@@ -178,20 +168,14 @@ func issueCert(config *conf.Config) (errors []error) {
 	}
 
 	outcome, err := pkiImpl.Issue(sink, config)
-	if err != nil {
-		log.Error().Msgf("could not issue new certificate: %v", err)
-		errors = append(errors, err)
-	}
 
 	if outcome == pki.Issued && err == nil && len(serial) > 0 {
-		errs := runPostIssueHooks(config)
-		if len(errs) > 0 {
-			log.Error().Msgf("Encountered errors while running post-issue hooks: %v", errs)
+		if err := runPostIssueHooks(config); err != nil {
+			log.Error().Err(err).Msg("Encountered errors while running post-issue hooks")
 		}
 
-		err := pkiImpl.Revoke(serial)
-		if err != nil {
-			log.Warn().Msgf("Revoking serial %s failed: %v", serial, err)
+		if err := pkiImpl.Revoke(serial); err != nil {
+			log.Warn().Err(err).Msg("Revoking serial %s failed")
 		}
 	}
 
@@ -204,19 +188,20 @@ func issueCert(config *conf.Config) (errors []error) {
 		}
 	}
 
-	return
+	return err
 }
 
-func runPostIssueHooks(config *conf.Config) (errs []error) {
+func runPostIssueHooks(config *conf.Config) error {
+	var err error
 	for _, hook := range config.PostHooks {
 		log.Info().Msgf("Running command '%s'", hook)
 		parsed := strings.Split(hook, " ")
 		cmd := exec.Command(parsed[0], parsed[1:]...) // #nosec G204
-		err := cmd.Run()
-		if err != nil {
-			errs = append(errs, errors.Errorf("error running command '%s': %v", parsed[0], err))
+		cmdErr := cmd.Run()
+		if cmdErr != nil {
+			err = multierr.Append(err, errors.Errorf("error running command '%s': %v", parsed[0], cmdErr))
 		}
 	}
 
-	return
+	return err
 }
