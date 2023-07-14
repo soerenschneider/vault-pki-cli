@@ -15,6 +15,12 @@ func getVaultConfig(conf *conf.Config) *api.Config {
 	return vaultConfig
 }
 
+func DieOnErr(err error, msg string) {
+	if err != nil {
+		log.Fatal().Err(err).Msg(msg)
+	}
+}
+
 func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, error) {
 	token := conf.VaultToken
 	if len(token) > 0 {
