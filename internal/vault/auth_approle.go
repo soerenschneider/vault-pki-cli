@@ -2,7 +2,7 @@ package vault
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/hashicorp/vault/api"
 )
@@ -42,7 +42,7 @@ func (t *AppRoleAuth) getLoginTuple() (string, string, error) {
 
 	val, ok = t.loginData[KeySecretIdFile]
 	if ok && len(val) > 0 {
-		data, err := ioutil.ReadFile(val)
+		data, err := os.ReadFile(val)
 		if err != nil {
 			return "", "", fmt.Errorf("could not read secret_id from file '%s': %v", val, err)
 		}
