@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
@@ -11,7 +10,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 func getRevokeCmd() *cobra.Command {
@@ -33,13 +31,8 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 		log.Fatal().Err(err).Msg("could not get config")
 	}
 
-	errors := append(config.Validate(), config.Validate()...)
-	if len(errors) > 0 {
-		fmtErrors := make([]string, len(errors))
-		for i, er := range errors {
-			fmtErrors[i] = fmt.Sprintf("\"%s\"", er)
-		}
-		log.Fatal().Msgf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
+	if err = config.Validate(); err != nil {
+		log.Fatal().Err(err).Msg("invalid config")
 	}
 
 	storage.InitBuilder(config)

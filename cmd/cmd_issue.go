@@ -2,11 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
-	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/spf13/viper"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -14,6 +9,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/soerenschneider/vault-pki-cli/internal"
+	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
+	"github.com/soerenschneider/vault-pki-cli/internal/storage"
+	"github.com/spf13/viper"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
@@ -77,13 +78,8 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 		}()
 	}
 
-	errors := config.ValidateIssue()
-	if len(errors) > 0 {
-		fmtErrors := make([]string, len(errors))
-		for i, er := range errors {
-			fmtErrors[i] = fmt.Sprintf("\"%s\"", er)
-		}
-		log.Fatal().Msgf("invalid config, %d errors: %s", len(errors), strings.Join(fmtErrors, ", "))
+	if err = config.ValidateIssue(); err != nil {
+		log.Fatal().Err(err).Msg("invalid config, errors")
 	}
 
 	ticker := time.NewTicker(tickDuration)

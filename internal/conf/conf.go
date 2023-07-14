@@ -3,8 +3,10 @@ package conf
 import (
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"reflect"
+
+	"github.com/rs/zerolog/log"
+	"go.uber.org/multierr"
 )
 
 var sensitiveVars = map[string]struct{}{
@@ -65,8 +67,8 @@ func (c *Config) Print() {
 	log.Info().Msg("---")
 }
 
-func (c *Config) Validate() []error {
-	errs := make([]error, 0)
+func (c *Config) Validate() error {
+	var err error
 
 	emptyVaultToken := len(c.VaultToken) == 0
 	emptyVaultAuthK8sRole := len(c.VaultAuthK8sRole) == 0
@@ -89,44 +91,44 @@ func (c *Config) Validate() []error {
 	}
 
 	if numAuthMethodsProvided == 0 {
-		errs = append(errs, errors.New("no vault auth info provided. supply either token, AppRole or k8s auth info"))
+		err = multierr.Append(err, errors.New("no vault auth info provided. supply either token, AppRole or k8s auth info"))
 	} else if numAuthMethodsProvided > 1 {
-		errs = append(errs, fmt.Errorf("must provide only a single vault auth method, %d were provided", numAuthMethodsProvided))
+		err = multierr.Append(err, fmt.Errorf("must provide only a single vault auth method, %d were provided", numAuthMethodsProvided))
 	}
 
 	if len(c.VaultSecretId) > 0 && len(c.VaultSecretIdFile) > 0 {
-		errs = append(errs, fmt.Errorf("both '%s' and '%s' auth info provided, don't know what to pick", FLAG_VAULT_AUTH_APPROLE_SECRET_ID, FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE))
+		err = multierr.Append(err, fmt.Errorf("both '%s' and '%s' auth info provided, don't know what to pick", FLAG_VAULT_AUTH_APPROLE_SECRET_ID, FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE))
 	}
 
 	if len(c.VaultAddress) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_ADDRESS))
+		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_ADDRESS))
 	}
 
 	if len(c.VaultMountApprole) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_APPROLE_MOUNT))
+		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_APPROLE_MOUNT))
 	}
 
 	if len(c.VaultMountPki) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_MOUNT))
+		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_MOUNT))
 	}
 
 	if len(c.VaultPkiRole) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_BACKEND_ROLE))
+		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_BACKEND_ROLE))
 	}
 
-	return errs
+	return err
 }
 
-func (c *Config) ValidateIssue() []error {
-	errs := c.Validate()
+func (c *Config) ValidateIssue() error {
+	err := c.Validate()
 
 	if len(c.CommonName) == 0 {
-		errs = append(errs, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
+		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_ISSUE_COMMON_NAME))
 	}
 
 	if c.CertificateLifetimeThresholdPercentage < 5 || c.CertificateLifetimeThresholdPercentage > 90 {
-		errs = append(errs, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
+		err = multierr.Append(err, fmt.Errorf("'%s' must be [5, 90]", FLAG_ISSUE_LIFETIME_THRESHOLD_PERCENTAGE))
 	}
 
-	return errs
+	return err
 }
