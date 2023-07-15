@@ -16,7 +16,7 @@ func readCaChainCmd() *cobra.Command {
 	}
 
 	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature ca certificate chain to this file")
-	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE) // nolint:errcheck
 
 	return getCaCmd
 }

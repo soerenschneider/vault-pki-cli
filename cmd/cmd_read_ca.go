@@ -17,7 +17,7 @@ func readCaCmd() *cobra.Command {
 
 	getCaCmd.PersistentFlags().StringP(conf.FLAG_OUTPUT_FILE, "o", "", "WriteSignature ca certificate to this output file")
 	getCaCmd.PersistentFlags().BoolP(conf.FLAG_DER_ENCODED, "d", false, "Use DER encoding")
-	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)
+	getCaCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE) // nolint:errcheck
 
 	return getCaCmd
 }
