@@ -3,15 +3,16 @@ package internal
 import (
 	"bytes"
 	"errors"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/rs/zerolog/log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 const (
@@ -79,7 +80,7 @@ func StartMetricsServer(addr string) error {
 		IdleTimeout:       90 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); errors.Is(err, http.ErrServerClosed) {
+	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
