@@ -36,18 +36,9 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 		return nil, err
 	}
 
-	path := parsed.Path
-	if parsed.Host == "~" || parsed.Host == "$HOME" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("tried to expand '%s' but homeDir could not be detected: %v", parsed.Host, err)
-		}
-
-		orig := filepath.Join(parsed.Host, path)
-		path = filepath.Join(homeDir, orig[len(parsed.Host):])
-		log.Info().Msgf("Expanded path '%s' to '%s'", orig, path)
-	} else if len(parsed.Host) > 0 {
-		return nil, fmt.Errorf("invalid syntax for uri, no host expected: '%s' (did you forget the leading '/'?)", uri)
+	path, err := expandHomeDir(parsed)
+	if err != nil {
+		return nil, err
 	}
 
 	var username, pass string
@@ -82,6 +73,27 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 	}
 
 	return newFilesystemStorage(path, username, pass, mode)
+}
+
+func expandHomeDir(parsed *url.URL) (string, error) {
+	path := parsed.Path
+	if parsed.Host == "~" || parsed.Host == "$HOME" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("tried to expand '%s' but homeDir could not be detected: %v", parsed.Host, err)
+		}
+
+		orig := filepath.Join(parsed.Host, path)
+		path = filepath.Join(homeDir, orig[len(parsed.Host):])
+		log.Info().Msgf("Expanded path '%s' to '%s'", orig, path)
+		return path, nil
+	}
+
+	if len(parsed.Host) > 0 {
+		return "", fmt.Errorf("invalid syntax for uri, no host expected (did you forget the leading '/'?)")
+	}
+
+	return path, nil
 }
 
 func newFilesystemStorage(path, owner, group string, mode os.FileMode) (*FilesystemStorage, error) {
