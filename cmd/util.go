@@ -31,7 +31,7 @@ func (z *ZeroLogAdapter) Warn(format string, args ...interface{}) {
 
 func getVaultConfig(conf *conf.Config) *api.Config {
 	vaultConfig := api.DefaultConfig()
-	vaultConfig.MaxRetries = 13
+	vaultConfig.MaxRetries = 5
 	vaultConfig.Address = conf.VaultAddress
 	return vaultConfig
 }
