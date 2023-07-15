@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/spf13/pflag"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/soerenschneider/vault-pki-cli/internal"
+	"github.com/soerenschneider/vault-pki-cli/internal/conf"
+	"github.com/spf13/pflag"
 
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
