@@ -3,18 +3,20 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"sync"
+
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"net/url"
-	"sync"
 )
 
 var (
 	instance *buildContext
 	lock     = &sync.Mutex{}
+	once     = sync.Once{}
 )
 
 // buildContext is responsible for building storage implementation instances. The struct contains shared resources,
@@ -25,15 +27,13 @@ type buildContext struct {
 }
 
 func InitBuilder(config *conf.Config) *buildContext {
-	if instance == nil {
-		lock.Lock()
-		defer lock.Unlock()
+	once.Do(func() {
 		if instance == nil {
 			instance = &buildContext{
 				config: config,
 			}
 		}
-	}
+	})
 
 	return instance
 }
