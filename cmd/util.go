@@ -2,11 +2,32 @@ package main
 
 import (
 	"github.com/hashicorp/vault/api"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 )
+
+type ZeroLogAdapter struct {
+	logger *zerolog.Logger
+}
+
+func (z *ZeroLogAdapter) Error(format string, args ...interface{}) {
+	z.logger.Error().Msgf(format, args...)
+}
+
+func (z *ZeroLogAdapter) Info(format string, args ...interface{}) {
+	z.logger.Info().Msgf(format, args...)
+}
+
+func (z *ZeroLogAdapter) Debug(format string, args ...interface{}) {
+	z.logger.Debug().Msgf(format, args...)
+}
+
+func (z *ZeroLogAdapter) Warn(format string, args ...interface{}) {
+	z.logger.Debug().Msgf(format, args...)
+}
 
 func getVaultConfig(conf *conf.Config) *api.Config {
 	vaultConfig := api.DefaultConfig()
