@@ -15,6 +15,7 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/spf13/viper"
 	"go.uber.org/multierr"
+	"golang.org/x/net/context"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
@@ -26,7 +27,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const tickDuration = 1 * time.Hour
+const daemonRunInterval = 1 * time.Hour
 
 func getIssueCmd() *cobra.Command {
 	var issueCmd = &cobra.Command{
@@ -65,57 +66,87 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	config.Print()
 
 	err = config.ValidateIssue()
-	DieOnErr(err, "invalid config")
+	DieOnErr(err, "invalid config", config)
 
-	if config.Daemonize && len(config.MetricsAddr) > 0 {
-		log.Info().Msgf("Starting metrics server at '%s'", config.MetricsAddr)
-		go func() {
-			err := internal.StartMetricsServer(config.MetricsAddr)
-			DieOnErr(err, "could not start metrics server")
-		}()
+	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
+	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
+
+	pkiImpl, sink := buildDependencies(config)
+	err = issueCert(config, pkiImpl, sink)
+	if err != nil {
+		log.Error().Err(err).Msg("issuing cert not successful")
 	}
-
-	ticker := time.NewTicker(tickDuration)
-	defer ticker.Stop()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
 
-	pkiImpl, sink := buildDependencies(config)
+	ctx, cancel := context.WithCancel(context.Background())
+	if config.Daemonize {
+		go runAsDaemon(ctx, config, pkiImpl, sink)
+	} else {
+		done <- true
+	}
+
+	select {
+	case <-interrupt:
+		log.Info().Msgf("got interrupt")
+		cancel()
+	case <-done:
+		cancel()
+	}
+
+	DieOnErr(err, "could not write metrics", config)
+}
+
+func runAsDaemon(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) {
+	if config.Daemonize && len(config.MetricsAddr) > 0 {
+		log.Info().Msgf("Starting metrics server at '%s'", config.MetricsAddr)
+		go func() {
+			err := internal.StartMetricsServer(config.MetricsAddr)
+			DieOnErr(err, "could not start metrics server", config)
+		}()
+	}
+
+	ticker := time.NewTicker(daemonRunInterval)
+	defer ticker.Stop()
+
 	for {
-		err = issueCert(config, pkiImpl, sink)
-		if err != nil {
-			log.Error().Err(err).Msg("issuing cert not successful")
-			internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
+		select {
+		case <-ticker.C:
+			err := issueCert(config, pkiImpl, sink)
+			if err != nil {
+				log.Error().Err(err).Msg("issuing cert not successful")
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func issueCert(config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) error {
+	var serial string
+	x509cert, err := sink.ReadCert()
+	if err == nil {
+		serial = pkg.FormatSerial(x509cert.SerialNumber)
+	}
+
+	outcome, err := pkiImpl.Issue(sink, config)
+	if outcome == pki.Issued && err == nil && len(serial) > 0 {
+		if err := runPostIssueHooks(config); err != nil {
+			log.Error().Err(err).Msg("Encountered errors while running post-issue hooks")
 		} else {
 			internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
 		}
-		internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
-		if !config.Daemonize && len(config.MetricsFile) > 0 {
-			err := internal.WriteMetrics(config.MetricsFile)
-			if err != nil {
-				log.Error().Err(err).Msg("could not write metrics")
-			}
-		}
 
-		if !config.Daemonize {
-			done <- true
-		}
-
-		select {
-		case <-interrupt:
-			log.Info().Msg("Received signal")
-			return
-		case <-done:
-			if err != nil {
-				log.Fatal().Err(err).Msg("encountered errors")
-			}
-			return
-		case <-ticker.C:
-			continue
+		if err := pkiImpl.Revoke(serial); err != nil {
+			log.Warn().Err(err).Msg("Revoking serial %s failed")
 		}
 	}
+
+	tidyStorage(pkiImpl)
+
+	return err
 }
 
 func buildRenewalStrategy(config *conf.Config) (issue_strategies.IssueStrategy, error) {
@@ -130,48 +161,24 @@ func buildDependencies(config *conf.Config) (*pki.PkiCli, pki.IssueSink) {
 	storage.InitBuilder(config)
 
 	vaultClient, err := buildVaultClient(config)
-	DieOnErr(err, "can't build client")
+	DieOnErr(err, "can't build client", config)
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
-	DieOnErr(err, "can't build auth")
+	DieOnErr(err, "can't build auth", config)
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
-	DieOnErr(err, "can't build vault pki")
+	DieOnErr(err, "can't build vault pki", config)
 
 	strat, err := buildRenewalStrategy(config)
-	DieOnErr(err, "can't build renewal strategy")
+	DieOnErr(err, "can't build renewal strategy", config)
 
 	pkiImpl, err := pki.NewPki(vaultBackend, strat)
-	DieOnErr(err, "can't build pki impl")
+	DieOnErr(err, "can't build pki impl", config)
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
-	DieOnErr(err, "can't build sink")
+	DieOnErr(err, "can't build sink", config)
 
 	return pkiImpl, sink
-}
-
-func issueCert(config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) error {
-	var serial string
-	x509cert, err := sink.ReadCert()
-	if err == nil {
-		serial = pkg.FormatSerial(x509cert.SerialNumber)
-	}
-
-	outcome, err := pkiImpl.Issue(sink, config)
-
-	if outcome == pki.Issued && err == nil && len(serial) > 0 {
-		if err := runPostIssueHooks(config); err != nil {
-			log.Error().Err(err).Msg("Encountered errors while running post-issue hooks")
-		}
-
-		if err := pkiImpl.Revoke(serial); err != nil {
-			log.Warn().Err(err).Msg("Revoking serial %s failed")
-		}
-	}
-
-	tidyStorage(pkiImpl)
-
-	return err
 }
 
 func tidyStorage(pkiImpl *pki.PkiCli) {

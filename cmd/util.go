@@ -38,7 +38,13 @@ func getVaultConfig(conf *conf.Config) *api.Config {
 	return vaultConfig
 }
 
-func DieOnErr(err error, msg string) {
+func DieOnErr(err error, msg string, config ...*conf.Config) {
+	if len(config) > 0 && len(config[0].MetricsFile) > 0 {
+		if err := internal.WriteMetrics(config[0].MetricsFile); err != nil {
+			log.Error().Err(err).Msg("could not write metrics")
+		}
+	}
+
 	if err != nil {
 		log.Fatal().Err(err).Msg(msg)
 	}
