@@ -28,7 +28,7 @@ const (
 	ParamChmod = "chmod"
 )
 
-var defaultMode os.FileMode = 0700
+var defaultMode os.FileMode = 0600
 
 func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 	parsed, err := url.Parse(uri)
