@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -42,30 +44,39 @@ func DieOnErr(err error, msg string) {
 	}
 }
 
-func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, error) {
-	token := conf.VaultToken
-	if len(token) > 0 {
-		log.Info().Msg("Building 'token' vault auth...")
-		return vault.NewTokenAuth(token)
+func buildVaultClient(config *conf.Config) (*api.Client, error) {
+	vaultConfig := getVaultConfig(config)
+	vaultClient, err := api.NewClient(vaultConfig)
+	if err != nil {
+		return nil, err
 	}
+	vaultClient.SetLogger(&ZeroLogAdapter{logger: &log.Logger})
 
-	if len(conf.VaultAuthK8sRole) > 0 {
+	return vaultClient, nil
+}
+
+func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, error) {
+	switch conf.VaultAuthMethod {
+	case "token":
+		log.Info().Msg("Building 'token' vault auth...")
+		return vault.NewTokenAuth(conf.VaultToken)
+	case "kubernetes":
 		log.Info().Msg("Building 'kubernetes' vault auth...")
 		return vault.NewVaultKubernetesAuth(client, conf.VaultAuthK8sRole)
-	}
+	case "approle":
+		approleData := make(map[string]string)
+		approleData[vault.KeyRoleId] = conf.VaultRoleId
+		approleData[vault.KeySecretId] = conf.VaultSecretId
+		approleData[vault.KeySecretIdFile] = conf.VaultSecretIdFile
 
-	if conf.VaultAuthImplicit {
+		log.Info().Msg("Building 'approle' vault auth...")
+		return vault.NewAppRoleAuth(client, approleData, conf.VaultMountApprole)
+	case "implicit":
 		log.Info().Msg("Building 'implicit' vault auth...")
 		return vault.NewTokenImplicitAuth(), nil
 	}
 
-	approleData := make(map[string]string)
-	approleData[vault.KeyRoleId] = conf.VaultRoleId
-	approleData[vault.KeySecretId] = conf.VaultSecretId
-	approleData[vault.KeySecretIdFile] = conf.VaultSecretIdFile
-
-	log.Info().Msg("Building 'approle' vault auth...")
-	return vault.NewAppRoleAuth(client, approleData, conf.VaultMountApprole)
+	return nil, fmt.Errorf("unknown auth strategy '%s'", conf.VaultAuthMethod)
 }
 
 func PrintVersionInfo() {
