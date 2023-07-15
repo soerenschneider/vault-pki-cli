@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.13.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.0...v1.13.1) (2023-07-15)
+
+
+### Bug Fixes
+
+* add logging adapter to use by vault ([b4027f3](https://github.com/soerenschneider/vault-pki-cli/commit/b4027f3fc28d6b0b48cf4746ed9461128e86ec75))
+* fix error logic ([93c8d5d](https://github.com/soerenschneider/vault-pki-cli/commit/93c8d5d7e83a75c3a5ab59528d29298b5a7c47e7))
+* only panic on actual error ([c2b3b36](https://github.com/soerenschneider/vault-pki-cli/commit/c2b3b36d1e48e71e5ab20e875a45f798f7d1cc44))
+* set default mod to 0600 for files ([580b286](https://github.com/soerenschneider/vault-pki-cli/commit/580b286164699ec424bb7e73bba77156f3a8f830))
+
 ## [1.13.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.12.0...v1.13.0) (2023-07-03)
 
 
