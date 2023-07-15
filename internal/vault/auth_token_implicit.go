@@ -3,9 +3,10 @@ package vault
 import (
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"os"
 	"path"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (

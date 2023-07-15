@@ -3,6 +3,7 @@ package vault
 import (
 	"errors"
 	"fmt"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/kubernetes"
 	"golang.org/x/net/context"
