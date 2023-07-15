@@ -3,6 +3,7 @@ package sink
 import (
 	"crypto/x509"
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
@@ -25,6 +26,12 @@ const (
 
 func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
 	var sinks []*KeyPairSink
+
+	builder, err := storage.GetBuilder()
+	if err != nil {
+		return nil, err
+	}
+
 	for _, conf := range config.StorageConfig {
 		var certVal string
 		var keyVal string
@@ -44,11 +51,6 @@ func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
 		val, ok = conf[caId]
 		if ok {
 			caVal = val
-		}
-
-		builder, err := storage.GetBuilder()
-		if err != nil {
-			return nil, err
 		}
 
 		var certSink pki.StorageImplementation
