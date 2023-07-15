@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/hashicorp/vault/api"
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
@@ -63,7 +62,7 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 }
 
 func readAcmeCert(config *conf.Config) error {
-	vaultClient, err := api.NewClient(getVaultConfig(config))
+	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "can't build client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)

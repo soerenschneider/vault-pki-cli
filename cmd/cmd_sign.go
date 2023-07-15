@@ -13,7 +13,6 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
 
-	"github.com/hashicorp/vault/api"
 	log "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -71,7 +70,7 @@ func signCert(config *conf.Config) error {
 		return err
 	}
 
-	vaultClient, err := api.NewClient(getVaultConfig(config))
+	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "can't build vault client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)

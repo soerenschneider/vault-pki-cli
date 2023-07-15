@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/hashicorp/vault/api"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
@@ -27,7 +26,7 @@ func fetchCaChainEntryPoint(_ *cobra.Command, _ []string) {
 	config, err := config()
 	DieOnErr(err, "can't get config")
 
-	vaultClient, err := api.NewClient(getVaultConfig(config))
+	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "could not build vault client")
 
 	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/hashicorp/vault/api"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -32,7 +31,7 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	DieOnErr(err, "invalid config")
 
 	storage.InitBuilder(config)
-	vaultClient, err := api.NewClient(getVaultConfig(config))
+	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "could not build vault client")
 
 	authStrategy, err := buildAuthImpl(vaultClient, config)
