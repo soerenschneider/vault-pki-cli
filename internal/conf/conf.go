@@ -1,10 +1,11 @@
 package conf
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog/log"
 	"go.uber.org/multierr"
 )
@@ -16,17 +17,17 @@ var sensitiveVars = map[string]struct{}{
 }
 
 type Config struct {
-	VaultAddress      string `mapstructure:"vault-address"`
-	VaultToken        string `mapstructure:"vault-auth-token"`
-	VaultAuthImplicit bool   `mapstructure:"vault-auth-implicit"`
-	VaultAuthK8sRole  string `mapstructure:"vault-auth-k8s-role"`
-	VaultRoleId       string `mapstructure:"vault-auth-role-id"`
-	VaultSecretId     string `mapstructure:"vault-auth-secret-id"`
-	VaultSecretIdFile string `mapstructure:"vault-auth-secret-id-file"`
-	VaultMountApprole string `mapstructure:"vault-approle-mount"`
-	VaultMountPki     string `mapstructure:"vault-pki-mount"`
+	VaultAddress      string `mapstructure:"vault-address" validate:"required"`
+	VaultAuthMethod   string `mapstructure:"vault-auth-method" validate:"required"`
+	VaultToken        string `mapstructure:"vault-auth-token" validate:"required_if=VaultAuthMethod token"`
+	VaultAuthK8sRole  string `mapstructure:"vault-auth-k8s-role" validate:"required_if=VaultAuthMethod k8s"`
+	VaultRoleId       string `mapstructure:"vault-auth-role-id" validate:"required_if=VaultAuthMethod approle"`
+	VaultSecretId     string `mapstructure:"vault-auth-secret-id" validate:"required_if=VaultSecretIdFile '' VaultAuthMethod approle,excluded_unless=VaultSecretIdFile ''"`
+	VaultSecretIdFile string `mapstructure:"vault-auth-secret-id-file" validate:"required_if=VaultSecretId '' VaultAuthMethod approle,excluded_unless=VaultSecretId ''"`
+	VaultMountApprole string `mapstructure:"vault-approle-mount" validate:"required_if=VaultAuthMethod approle"`
+	VaultMountPki     string `mapstructure:"vault-pki-mount" validate:"required"`
 	VaultMountKv2     string `mapstructure:"vault-kv2-mount"`
-	VaultPkiRole      string `mapstructure:"vault-pki-role-name"`
+	VaultPkiRole      string `mapstructure:"vault-pki-role-name" validate:"required"`
 
 	Daemonize bool `mapstructure:"daemonize"`
 
@@ -67,56 +68,17 @@ func (c *Config) Print() {
 	log.Info().Msg("---")
 }
 
+var (
+	validate *validator.Validate
+	once sync.Once
+)
+
 func (c *Config) Validate() error {
-	var err error
+	once.Do(func() {
+		validate = validator.New()
+	})
 
-	emptyVaultToken := len(c.VaultToken) == 0
-	emptyVaultAuthK8sRole := len(c.VaultAuthK8sRole) == 0
-	emptyRoleId := len(c.VaultRoleId) == 0
-	emptySecretId := len(c.VaultSecretId) == 0 && len(c.VaultSecretIdFile) == 0
-	emptyAppRoleAuth := emptySecretId || emptyRoleId
-
-	numAuthMethodsProvided := 0
-	if !emptyVaultToken {
-		numAuthMethodsProvided += 1
-	}
-	if !emptyAppRoleAuth {
-		numAuthMethodsProvided += 1
-	}
-	if !emptyVaultAuthK8sRole {
-		numAuthMethodsProvided += 1
-	}
-	if c.VaultAuthImplicit {
-		numAuthMethodsProvided += 1
-	}
-
-	if numAuthMethodsProvided == 0 {
-		err = multierr.Append(err, errors.New("no vault auth info provided. supply either token, AppRole or k8s auth info"))
-	} else if numAuthMethodsProvided > 1 {
-		err = multierr.Append(err, fmt.Errorf("must provide only a single vault auth method, %d were provided", numAuthMethodsProvided))
-	}
-
-	if len(c.VaultSecretId) > 0 && len(c.VaultSecretIdFile) > 0 {
-		err = multierr.Append(err, fmt.Errorf("both '%s' and '%s' auth info provided, don't know what to pick", FLAG_VAULT_AUTH_APPROLE_SECRET_ID, FLAG_VAULT_AUTH_APPROLE_SECRET_ID_FILE))
-	}
-
-	if len(c.VaultAddress) == 0 {
-		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_ADDRESS))
-	}
-
-	if len(c.VaultMountApprole) == 0 {
-		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_APPROLE_MOUNT))
-	}
-
-	if len(c.VaultMountPki) == 0 {
-		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_MOUNT))
-	}
-
-	if len(c.VaultPkiRole) == 0 {
-		err = multierr.Append(err, fmt.Errorf("empty '%s' provided", FLAG_VAULT_PKI_BACKEND_ROLE))
-	}
-
-	return err
+	return validate.Struct(c)
 }
 
 func (c *Config) ValidateIssue() error {
