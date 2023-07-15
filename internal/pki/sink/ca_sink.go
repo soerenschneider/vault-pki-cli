@@ -2,12 +2,13 @@ package sink
 
 import (
 	"fmt"
+
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 )
 
-// CsrSink accepts CA data to write to the configured storage implementation.
+// CaSink accepts CA data to write to the configured storage implementation.
 type CaSink struct {
 	storage pki.StorageImplementation
 }
