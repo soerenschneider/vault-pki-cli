@@ -1,5 +1,6 @@
+---
 linters:
   enable:
-    - gofmt
-    - goimports
+    - bodyclose
+    - cyclop
     - gosec
