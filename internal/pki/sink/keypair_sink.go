@@ -93,6 +93,22 @@ func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPair
 	return &KeyPairSink{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
+func (f *KeyPairSink) ReadCert() (*x509.Certificate, error) {
+	var source pki.StorageImplementation
+	if f.cert != nil {
+		source = f.cert
+	} else {
+		source = f.privateKey
+	}
+
+	data, err := source.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	return pkg.ParseCertPem(data)
+}
+
 func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 	if nil == certData {
 		return errors.New("got nil as certData")
@@ -100,33 +116,46 @@ func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 
 	// case 1: write cert, ca and private key to same storage
 	if f.cert == nil && f.ca == nil {
-		var data []byte
-		data = append(certData.Certificate, "\n"...)
-		if certData.HasCaData() {
-			data = append(data, append(certData.CaData, "\n"...)...)
-		}
-		data = append(data, append(certData.PrivateKey, "\n"...)...)
-
-		return f.privateKey.Write(data)
+		return f.writeToPrivateSlot(certData)
 	}
 
 	// case 2: write cert and private to a same storage, write ca (if existent) to dedicated storage
 	if f.cert == nil && f.ca != nil {
-		var data []byte
-		data = append(certData.Certificate, "\n"...)
-		data = append(data, append(certData.PrivateKey, "\n"...)...)
-
-		err := f.privateKey.Write(data)
-		if err != nil {
-			return err
-		}
-
-		if certData.HasCaData() {
-			return f.ca.Write(append(certData.CaData, "\n"...))
-		}
+		return f.writeToCertAndCaSlot(certData)
 	}
 
 	// case 3: write to individual storage
+	return f.writeToIndividualSlots(certData)
+}
+
+func (f *KeyPairSink) writeToPrivateSlot(certData *pki.CertData) error {
+	var data []byte
+	data = append(certData.Certificate, "\n"...)
+	if certData.HasCaData() {
+		data = append(data, append(certData.CaData, "\n"...)...)
+	}
+	data = append(data, append(certData.PrivateKey, "\n"...)...)
+
+	return f.privateKey.Write(data)
+}
+
+func (f *KeyPairSink) writeToCertAndCaSlot(certData *pki.CertData) error {
+	var data []byte
+	data = append(certData.Certificate, "\n"...)
+	data = append(data, append(certData.PrivateKey, "\n"...)...)
+
+	if err := f.privateKey.Write(data); err != nil {
+		return err
+	}
+
+	if certData.HasCaData() {
+		return f.ca.Write(append(certData.CaData, "\n"...))
+	}
+
+	return nil
+}
+
+func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
 	if certData.HasCaData() && f.ca != nil {
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err
@@ -142,20 +171,4 @@ func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 	}
 
 	return nil
-}
-
-func (f *KeyPairSink) ReadCert() (*x509.Certificate, error) {
-	var source pki.StorageImplementation
-	if f.cert != nil {
-		source = f.cert
-	} else {
-		source = f.privateKey
-	}
-
-	data, err := source.Read()
-	if err != nil {
-		return nil, err
-	}
-
-	return pkg.ParseCertPem(data)
 }
