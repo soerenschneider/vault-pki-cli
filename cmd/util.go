@@ -61,14 +61,14 @@ func buildVaultClient(config *conf.Config) (*api.Client, error) {
 	return vaultClient, nil
 }
 
-func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, error) {
+func buildAuthImpl(conf *conf.Config) (vault.AuthMethod, error) {
 	switch conf.VaultAuthMethod {
 	case "token":
 		log.Info().Msg("Building 'token' vault auth...")
 		return vault.NewTokenAuth(conf.VaultToken)
 	case "kubernetes":
 		log.Info().Msg("Building 'kubernetes' vault auth...")
-		return vault.NewVaultKubernetesAuth(client, conf.VaultAuthK8sRole)
+		return vault.NewVaultKubernetesAuth(conf.VaultAuthK8sRole)
 	case "approle":
 		approleData := make(map[string]string)
 		approleData[vault.KeyRoleId] = conf.VaultRoleId
@@ -76,7 +76,7 @@ func buildAuthImpl(client *api.Client, conf *conf.Config) (vault.AuthMethod, err
 		approleData[vault.KeySecretIdFile] = conf.VaultSecretIdFile
 
 		log.Info().Msg("Building 'approle' vault auth...")
-		return vault.NewAppRoleAuth(client, approleData, conf.VaultMountApprole)
+		return vault.NewAppRoleAuth(approleData, conf.VaultMountApprole)
 	case "implicit":
 		log.Info().Msg("Building 'implicit' vault auth...")
 		return vault.NewTokenImplicitAuth(), nil

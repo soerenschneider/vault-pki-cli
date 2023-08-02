@@ -6,7 +6,9 @@ import (
 	"os"
 	"path"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -21,32 +23,34 @@ func NewTokenImplicitAuth() *TokenImplicitAuth {
 	return &TokenImplicitAuth{}
 }
 
-func (t *TokenImplicitAuth) Authenticate() (string, error) {
+func (t *TokenImplicitAuth) Login(_ context.Context, _ *api.Client) (*api.Secret, error) {
 	token := os.Getenv(tokenEnvVar)
 	if len(token) > 0 {
 		log.Info().Msgf("Using vault token from env var %s", tokenEnvVar)
-		return token, nil
+		ret := &api.Secret{Auth: &api.SecretAuth{ClientToken: token}}
+		return ret, nil
 	}
 
 	dirname, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("can't get user home dir: %v", err)
+		return nil, fmt.Errorf("can't get user home dir: %v", err)
 	}
 
 	tokenPath := path.Join(dirname, tokenFile)
 	if _, err := os.Stat(tokenPath); errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("file '%s' to read vault token from does not exist", tokenPath)
+		return nil, fmt.Errorf("file '%s' to read vault token from does not exist", tokenPath)
 	}
 
 	read, err := os.ReadFile(tokenPath)
 	if err != nil {
-		return "", fmt.Errorf("error reading file '%s': %v", tokenPath, err)
+		return nil, fmt.Errorf("error reading file '%s': %v", tokenPath, err)
 	}
 
 	log.Info().Msgf("Using vault token from file '%s'", tokenPath)
-	return string(read), nil
+	ret := &api.Secret{Auth: &api.SecretAuth{ClientToken: string(read)}}
+	return ret, nil
 }
 
-func (t *TokenImplicitAuth) Cleanup() error {
+func (t *TokenImplicitAuth) Cleanup(_ context.Context, _ *api.Client) error {
 	return nil
 }

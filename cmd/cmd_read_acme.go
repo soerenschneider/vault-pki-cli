@@ -65,7 +65,7 @@ func readAcmeCert(config *conf.Config) error {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "can't build client")
 
-	authStrategy, err := buildAuthImpl(vaultClient, config)
+	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)

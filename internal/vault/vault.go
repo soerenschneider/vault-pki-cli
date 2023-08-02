@@ -29,8 +29,8 @@ const (
 )
 
 type AuthMethod interface {
-	Authenticate() (string, error)
-	Cleanup() error
+	Login(ctx context.Context, client *api.Client) (*api.Secret, error)
+	Cleanup(ctx context.Context, client *api.Client) error
 }
 
 type VaultClient struct {
@@ -64,12 +64,10 @@ func NewVaultPki(client *api.Client, auth AuthMethod, config *conf.Config) (*Vau
 }
 
 func (c *VaultClient) Revoke(serial string) error {
-	token, err := c.auth.Authenticate()
+	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
 		return fmt.Errorf("could not authenticate: %v", err)
 	}
-
-	c.client.SetToken(token)
 
 	path := fmt.Sprintf("%s/revoke", c.mountPath)
 	data := map[string]interface{}{
@@ -89,12 +87,10 @@ func (c *VaultClient) Revoke(serial string) error {
 }
 
 func (c *VaultClient) issue(opts *conf.Config) (*api.Secret, error) {
-	token, err := c.auth.Authenticate()
+	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
 	}
-
-	c.client.SetToken(token)
 
 	path := fmt.Sprintf("%s/issue/%s", c.mountPath, c.roleName)
 	data := buildIssueArgs(opts)
@@ -120,12 +116,10 @@ func buildIssueArgs(opts *conf.Config) map[string]interface{} {
 }
 
 func (c *VaultClient) sign(csr string, opts *conf.Config) (*api.Secret, error) {
-	token, err := c.auth.Authenticate()
+	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
 	}
-
-	c.client.SetToken(token)
 
 	path := fmt.Sprintf("%s/sign/%s", c.mountPath, c.roleName)
 	data, err := buildSignArgs(csr, opts)
@@ -239,11 +233,10 @@ func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertD
 		return nil, errors.New("nil config provided")
 	}
 
-	token, err := c.auth.Authenticate()
+	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
 		return nil, fmt.Errorf("could not authenticate: %v", err)
 	}
-	c.client.SetToken(token)
 
 	certData, err := c.readAcmeCert(commonName)
 	if err != nil {
@@ -263,12 +256,10 @@ func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertD
 }
 
 func (c *VaultClient) Tidy() error {
-	token, err := c.auth.Authenticate()
+	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
 		return fmt.Errorf("could not authenticate: %v", err)
 	}
-
-	c.client.SetToken(token)
 
 	path := fmt.Sprintf("%s/tidy", c.mountPath)
 
@@ -328,7 +319,7 @@ func (c *VaultClient) Issue(opts *conf.Config) (*pki.CertData, error) {
 }
 
 func (c *VaultClient) Cleanup() error {
-	return c.auth.Cleanup()
+	return c.auth.Cleanup(context.Background(), c.client)
 }
 
 func (c *VaultClient) FetchCa(binary bool) ([]byte, error) {

@@ -163,7 +163,7 @@ func buildDependencies(config *conf.Config) (*pki.PkiCli, pki.IssueSink) {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "can't build client", config)
 
-	authStrategy, err := buildAuthImpl(vaultClient, config)
+	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth", config)
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)

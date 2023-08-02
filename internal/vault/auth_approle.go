@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/vault/api"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -14,15 +15,12 @@ const (
 )
 
 type AppRoleAuth struct {
-	client *api.Client
-
 	approleMount string
 	loginData    map[string]string
 }
 
-func NewAppRoleAuth(client *api.Client, loginData map[string]string, mountPath string) (*AppRoleAuth, error) {
+func NewAppRoleAuth(loginData map[string]string, mountPath string) (*AppRoleAuth, error) {
 	return &AppRoleAuth{
-		client:       client,
 		loginData:    loginData,
 		approleMount: mountPath,
 	}, nil
@@ -52,16 +50,16 @@ func (t *AppRoleAuth) getLoginTuple() (string, string, error) {
 	return roleId, secretId, nil
 }
 
-func (t *AppRoleAuth) Cleanup() error {
+func (t *AppRoleAuth) Cleanup(ctx context.Context, client *api.Client) error {
 	path := "auth/token/revoke-self"
-	_, err := t.client.Logical().Write(path, map[string]interface{}{})
+	_, err := client.Logical().Write(path, map[string]interface{}{})
 	return err
 }
 
-func (t *AppRoleAuth) Authenticate() (string, error) {
+func (t *AppRoleAuth) Login(ctx context.Context, client *api.Client) (*api.Secret, error) {
 	roleId, secretId, err := t.getLoginTuple()
 	if err != nil {
-		return "", fmt.Errorf("could not get login data: %v", err)
+		return nil, fmt.Errorf("could not get login data: %v", err)
 	}
 
 	path := fmt.Sprintf("auth/%s/login", t.approleMount)
@@ -69,10 +67,10 @@ func (t *AppRoleAuth) Authenticate() (string, error) {
 		KeyRoleId:   roleId,
 		KeySecretId: secretId,
 	}
-	secret, err := t.client.Logical().Write(path, data)
+	secret, err := client.Logical().Write(path, data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return secret.Auth.ClientToken, nil
+	return secret, nil
 }

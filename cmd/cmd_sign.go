@@ -73,7 +73,7 @@ func signCert(config *conf.Config) error {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "can't build vault client")
 
-	authStrategy, err := buildAuthImpl(vaultClient, config)
+	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth impl")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)

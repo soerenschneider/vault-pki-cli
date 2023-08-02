@@ -34,7 +34,7 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "could not build vault client")
 
-	authStrategy, err := buildAuthImpl(vaultClient, config)
+	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "could not build auth strategy")
 
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)

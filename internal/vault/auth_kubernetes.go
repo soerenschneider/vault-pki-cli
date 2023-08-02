@@ -1,7 +1,6 @@
 package vault
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/vault/api"
@@ -15,32 +14,26 @@ const (
 )
 
 type KubernetesAuth struct {
-	client                  *api.Client
 	role                    string
 	serviceAccountTokenFile string
 	mount                   string
 }
 
-func NewVaultKubernetesAuth(client *api.Client, role string) (*KubernetesAuth, error) {
-	if client == nil {
-		return nil, errors.New("empty client provided")
-	}
-
+func NewVaultKubernetesAuth(role string) (*KubernetesAuth, error) {
 	return &KubernetesAuth{
-		client:                  client,
 		role:                    role,
 		mount:                   defaultMount,
 		serviceAccountTokenFile: defaultServiceAccountTokenFile,
 	}, nil
 }
 
-func (t *KubernetesAuth) Cleanup() error {
+func (t *KubernetesAuth) Cleanup(ctx context.Context, client *api.Client) error {
 	path := "auth/token/revoke-self"
-	_, err := t.client.Logical().Write(path, map[string]interface{}{})
+	_, err := client.Logical().Write(path, map[string]interface{}{})
 	return err
 }
 
-func (t *KubernetesAuth) Authenticate() (string, error) {
+func (t *KubernetesAuth) Login(ctx context.Context, client *api.Client) (*api.Secret, error) {
 
 	k8sAuth, err := kubernetes.NewKubernetesAuth(
 		t.role,
@@ -48,16 +41,16 @@ func (t *KubernetesAuth) Authenticate() (string, error) {
 		kubernetes.WithMountPath(t.mount))
 
 	if err != nil {
-		return "", fmt.Errorf("unable to initialize Kubernetes kubernetes method: %w", err)
+		return nil, fmt.Errorf("unable to initialize Kubernetes kubernetes method: %w", err)
 	}
 
-	authInfo, err := t.client.Auth().Login(context.TODO(), k8sAuth)
+	authInfo, err := client.Auth().Login(context.TODO(), k8sAuth)
 	if err != nil {
-		return "", fmt.Errorf("unable to log in with Kubernetes kubernetes: %w", err)
+		return nil, fmt.Errorf("unable to log in with Kubernetes kubernetes: %w", err)
 	}
 	if authInfo == nil {
-		return "", fmt.Errorf("no kubernetes info was returned after login")
+		return nil, fmt.Errorf("no kubernetes info was returned after login")
 	}
 
-	return authInfo.Auth.ClientToken, nil
+	return authInfo, nil
 }
