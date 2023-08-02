@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.1...v1.13.2) (2023-08-02)
+
+
+### Bug Fixes
+
+* prevent non-critical errors from influencing success of run ([3f07080](https://github.com/soerenschneider/vault-pki-cli/commit/3f0708094fb708f59d7e9fb77c9f50ac0b386ae1))
+
 ## [1.13.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.0...v1.13.1) (2023-07-15)
 
 
