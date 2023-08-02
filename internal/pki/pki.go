@@ -137,6 +137,10 @@ func updateCertificateMetrics(cert *x509.Certificate) {
 }
 
 func (p *PkiCli) Revoke(serial string) error {
+	if len(serial) == 0 {
+		return errors.New("can't revoke, empty cert serial provided")
+	}
+
 	log.Info().Msgf("Attempting to revoke certificate %s", serial)
 	err := p.pkiImpl.Revoke(serial)
 	if err != nil {

@@ -73,9 +73,6 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 
 	pkiImpl, sink := buildDependencies(config)
 	err = issueCert(config, pkiImpl, sink)
-	if err != nil {
-		log.Error().Err(err).Msg("issuing cert not successful")
-	}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -96,7 +93,10 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 		cancel()
 	}
 
-	DieOnErr(err, "could not write metrics", config)
+	DieOnErr(err, "issuing cert not successful", config)
+	if err := internal.WriteMetrics(config.MetricsFile); err != nil {
+		log.Warn().Err(err).Msg("could not write metrics")
+	}
 }
 
 func runAsDaemon(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) {
@@ -132,20 +132,21 @@ func issueCert(config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) err
 	}
 
 	outcome, err := pkiImpl.Issue(sink, config)
-	if outcome == pki.Issued && err == nil && len(serial) > 0 {
-		if err := runPostIssueHooks(config); err != nil {
-			log.Error().Err(err).Msg("Encountered errors while running post-issue hooks")
-		} else {
-			internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
-		}
+	if err != nil {
+		return err
+	}
+	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
+
+	if outcome == pki.Issued {
+		// overwrite outer 'err'
+		err = runPostIssueHooks(config)
 
 		if err := pkiImpl.Revoke(serial); err != nil {
-			log.Warn().Err(err).Msg("Revoking serial %s failed")
+			log.Warn().Err(err).Msg("Revoking cert '%s' failed")
 		}
 	}
 
 	tidyStorage(pkiImpl)
-
 	return err
 }
 

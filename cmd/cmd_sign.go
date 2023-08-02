@@ -47,22 +47,19 @@ func signCertEntryPoint(_ *cobra.Command, _ []string) {
 	config, err := config()
 	DieOnErr(err, "could not get config")
 
+	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
+	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
+
 	storage.InitBuilder(config)
 	err = signCert(config)
-	if err != nil {
-		log.Error().Err(err).Msgf("signing CSR not successful")
-		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
-	} else {
-		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
-	}
-	internal.MetricRunTimestamp.WithLabelValues(config.CommonName).SetToCurrentTime()
+	DieOnErr(err, "encountered errors", config)
+	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
+
 	if len(config.MetricsFile) > 0 {
 		if err := internal.WriteMetrics(config.MetricsFile); err != nil {
 			log.Error().Err(err).Msg("could not write metrics")
 		}
 	}
-
-	DieOnErr(err, "encountered errors")
 }
 
 func signCert(config *conf.Config) error {

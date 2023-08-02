@@ -39,15 +39,18 @@ func getVaultConfig(conf *conf.Config) *api.Config {
 }
 
 func DieOnErr(err error, msg string, config ...*conf.Config) {
+	if err == nil {
+		return
+	}
+	internal.MetricSuccess.WithLabelValues(config[0].CommonName).Set(0)
+
 	if len(config) > 0 && len(config[0].MetricsFile) > 0 {
 		if err := internal.WriteMetrics(config[0].MetricsFile); err != nil {
 			log.Error().Err(err).Msg("could not write metrics")
 		}
 	}
 
-	if err != nil {
-		log.Fatal().Err(err).Msg(msg)
-	}
+	log.Fatal().Err(err).Msg(msg)
 }
 
 func buildVaultClient(config *conf.Config) (*api.Client, error) {

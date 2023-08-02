@@ -42,13 +42,13 @@ func readAcmeEntryPoint(ccmd *cobra.Command, args []string) {
 	if len(config.CommonName) == 0 {
 		log.Fatal().Msgf("No '%s' specified", conf.FLAG_ISSUE_COMMON_NAME)
 	}
+	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
 	config.Print()
 
 	storage.InitBuilder(config)
 	err = readAcmeCert(config)
 	if err != nil {
 		log.Error().Err(err).Msg("reading cert not successful")
-		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(0)
 	} else {
 		internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
 	}
