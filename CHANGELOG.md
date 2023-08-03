@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.2...v1.13.3) (2023-08-03)
+
+
+### Bug Fixes
+
+* check if config is supplied ([44f27b7](https://github.com/soerenschneider/vault-pki-cli/commit/44f27b7586ea4435fca89429bce5f1430ac396c4))
+
 ## [1.13.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.1...v1.13.2) (2023-08-02)
 
 
