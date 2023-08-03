@@ -42,9 +42,9 @@ func DieOnErr(err error, msg string, config ...*conf.Config) {
 	if err == nil {
 		return
 	}
-	internal.MetricSuccess.WithLabelValues(config[0].CommonName).Set(0)
 
 	if len(config) > 0 && len(config[0].MetricsFile) > 0 {
+	    internal.MetricSuccess.WithLabelValues(config[0].CommonName).Set(0)
 		if err := internal.WriteMetrics(config[0].MetricsFile); err != nil {
 			log.Error().Err(err).Msg("could not write metrics")
 		}
