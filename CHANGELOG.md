@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.4](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.3...v1.13.4) (2023-08-05)
+
+
+### Bug Fixes
+
+* write ca to cert if no dedicated ca file is given ([ba51523](https://github.com/soerenschneider/vault-pki-cli/commit/ba515237297e131f68735b56ea8301bf2b9d5a15))
+
 ## [1.13.3](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.2...v1.13.3) (2023-08-03)
 
 
