@@ -109,14 +109,20 @@ func (f *KeyPairSink) writeToCertAndCaSlot(certData *pki.CertData) error {
 }
 
 func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
+	var certRaw []byte
+	certRaw = append(certData.Certificate, "\n"...)
+	if certData.HasCaData() && f.ca == nil {
+		certRaw = append(certRaw, append(certData.CaData, "\n"...)...)
+	}
+
+	if err := f.cert.Write(certRaw); err != nil {
+		return err
+	}
+
 	if certData.HasCaData() && f.ca != nil {
 		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
 			return err
 		}
-	}
-
-	if err := f.cert.Write(append(certData.Certificate, "\n"...)); err != nil {
-		return err
 	}
 
 	if certData.HasPrivateKey() {
