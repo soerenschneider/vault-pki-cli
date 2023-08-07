@@ -15,7 +15,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	go.uber.org/multierr v1.11.0
 	golang.org/x/net v0.12.0
-	golang.org/x/sys v0.10.0
+	golang.org/x/sys v0.11.0
 	k8s.io/api v0.27.4
 	k8s.io/apimachinery v0.27.4
 	k8s.io/client-go v0.27.4
