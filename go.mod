@@ -3,7 +3,7 @@ module github.com/soerenschneider/vault-pki-cli
 go 1.19
 
 require (
-	github.com/go-playground/validator/v10 v10.14.1
+	github.com/go-playground/validator/v10 v10.15.0
 	github.com/hashicorp/vault/api v1.9.2
 	github.com/hashicorp/vault/api/auth/kubernetes v0.4.1
 	github.com/pkg/errors v0.9.1
