@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/go-playground/validator/v10 v10.15.3
-	github.com/hashicorp/vault/api v1.9.2
+	github.com/hashicorp/vault/api v1.10.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
