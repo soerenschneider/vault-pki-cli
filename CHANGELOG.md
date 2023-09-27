@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.13.5](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.4...v1.13.5) (2023-09-27)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/go-playground/validator/v10 ([b75fa6c](https://github.com/soerenschneider/vault-pki-cli/commit/b75fa6c41955ca32297d9a52d9fa2e3c4e88319b))
+* **deps:** bump github.com/rs/zerolog from 1.30.0 to 1.31.0 ([5e540e9](https://github.com/soerenschneider/vault-pki-cli/commit/5e540e91f78cbf53cb8fab04d99e8a737385cbfe))
+* **deps:** bump golang.org/x/net from 0.14.0 to 0.15.0 ([ddbc820](https://github.com/soerenschneider/vault-pki-cli/commit/ddbc82091b6beccf1749ec37a4111ef931e16379))
+
 ## [1.13.4](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.3...v1.13.4) (2023-08-05)
 
 
