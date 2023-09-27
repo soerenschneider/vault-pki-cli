@@ -54,3 +54,7 @@ As a prerequesite, you need to have [Golang SDK](https://go.dev/dl/) installed. 
 ```text
 $ go install github.com/soerenschneider/vault-pki-cli@latest
 ```
+
+## Changelog
+
+The full changelog can be found [here](CHANGELOG.md)
