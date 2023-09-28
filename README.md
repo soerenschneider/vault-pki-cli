@@ -6,25 +6,16 @@
 
 ## Features
 
-🔐 Issues, signs and revokes x509 certificates
-
-🔑 Reads ACME certs written by [acmevault](https://github.com/soerenschneider/acmevault) (e.g. issued by LetsEncrypt)
-
-⛓  Reads the CA / CA chain of a PKI
-
-📖 Reads the CRL of a PKI
-
-📝 Supports DER and PEM formats, 
-
-⏰ Automatically renews certificates based on its lifetime
-
-🛂 Authenticate against Vault using Kubernetes, AppRole, (explicit) token or _implicit_ auth
-
-🗂 Supports multiple _sinks_: Kubernetes, plain files, in-memory
-
-💻 Runs effortlessly both on your workstation's CLI via command line flags or automated via systemd and config files on your server
-
-🔭 Provides metrics to increase observability for robust automation
+🔐 Issues, signs and revokes x509 certificates<br/>
+🔑 Reads ACME certs written by [acmevault](https://github.com/soerenschneider/acmevault) (e.g. issued by LetsEncrypt)<br/>
+⛓  Reads the CA / CA chain of a PKI<br/>
+📖 Reads the CRL of a PKI<br/>
+📝 Supports DER and PEM formats<br/>
+⏰ Automatically renews certificates based on its lifetime<br/>
+🛂 Authenticate against Vault using Kubernetes, AppRole, (explicit) token or _implicit_ auth<br/>
+🗂 Supports multiple _sinks_: Kubernetes, plain files, in-memory<br/>
+💻 Runs effortlessly both on your workstation's CLI via command line flags or automated via systemd and config files on your server<br/>
+🔭 Provides metrics to increase observability for robust automation<br/>
 
 ## Why would I need this?
 
