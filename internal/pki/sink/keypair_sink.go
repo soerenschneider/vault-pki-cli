@@ -1,8 +1,10 @@
 package sink
 
 import (
+	"bytes"
 	"crypto/x509"
 	"fmt"
+	"regexp"
 
 	"github.com/pkg/errors"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
@@ -81,38 +83,68 @@ func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
 	return f.writeToIndividualSlots(certData)
 }
 
-func (f *KeyPairSink) writeToPrivateSlot(certData *pki.CertData) error {
-	var data []byte
-	data = append(certData.Certificate, "\n"...)
-	if certData.HasCaData() {
-		data = append(data, append(certData.CaData, "\n"...)...)
-	}
-	data = append(data, append(certData.PrivateKey, "\n"...)...)
+func endsWithNewline(data []byte) bool {
+	return bytes.HasSuffix(data, []byte("\n"))
+}
 
+func (f *KeyPairSink) writeToPrivateSlot(certData *pki.CertData) error {
+	var data = certData.Certificate
+	if !endsWithNewline(data) {
+		data = append(data, "\n"...)
+	}
+
+	if certData.HasCaData() {
+		data = append(data, certData.CaData...)
+		if !endsWithNewline(data) {
+			data = append(data, "\n"...)
+		}
+	}
+
+	data = append(data, certData.PrivateKey...)
 	return f.privateKey.Write(data)
 }
 
 func (f *KeyPairSink) writeToCertAndCaSlot(certData *pki.CertData) error {
-	var data []byte
-	data = append(certData.Certificate, "\n"...)
-	data = append(data, append(certData.PrivateKey, "\n"...)...)
+	var data = certData.Certificate
+	if !endsWithNewline(data) {
+		data = append(data, "\n"...)
+	}
+
+	data = append(data, certData.PrivateKey...)
+	if !endsWithNewline(data) {
+		data = append(data, "\n"...)
+	}
 
 	if err := f.privateKey.Write(data); err != nil {
 		return err
 	}
 
 	if certData.HasCaData() {
-		return f.ca.Write(append(certData.CaData, "\n"...))
+		caData := certData.CaData
+		if !endsWithNewline(caData) {
+			data = append(caData, "\n"...)
+		}
+		return f.ca.Write(caData)
 	}
 
 	return nil
 }
 
+var lineBreaksRegex = regexp.MustCompile(`(\r\n?|\n){2,}`)
+
+func fixLineBreaks(input []byte) (ret []byte) {
+	ret = []byte(lineBreaksRegex.ReplaceAll(input, []byte("$1")))
+	return
+}
+
 func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
-	var certRaw []byte
-	certRaw = append(certData.Certificate, "\n"...)
+	var certRaw = certData.Certificate
 	if certData.HasCaData() && f.ca == nil {
-		certRaw = append(certRaw, append(certData.CaData, "\n"...)...)
+		if !endsWithNewline(certRaw) {
+			certRaw = append(certRaw, "\n"...)
+		}
+
+		certRaw = append(certRaw, certData.CaData...)
 	}
 
 	if err := f.cert.Write(certRaw); err != nil {
@@ -120,13 +152,13 @@ func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
 	}
 
 	if certData.HasCaData() && f.ca != nil {
-		if err := f.ca.Write(append(certData.CaData, "\n"...)); err != nil {
+		if err := f.ca.Write(certData.CaData); err != nil {
 			return err
 		}
 	}
 
 	if certData.HasPrivateKey() {
-		return f.privateKey.Write(append(certData.PrivateKey, "\n"...))
+		return f.privateKey.Write(fixLineBreaks(certData.PrivateKey))
 	}
 
 	return nil

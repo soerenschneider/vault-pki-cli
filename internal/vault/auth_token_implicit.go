@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
@@ -47,7 +48,7 @@ func (t *TokenImplicitAuth) Login(_ context.Context, _ *api.Client) (*api.Secret
 	}
 
 	log.Info().Msgf("Using vault token from file '%s'", tokenPath)
-	ret := &api.Secret{Auth: &api.SecretAuth{ClientToken: string(read)}}
+	ret := &api.Secret{Auth: &api.SecretAuth{ClientToken: strings.TrimSpace(string(read))}}
 	return ret, nil
 }
 
