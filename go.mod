@@ -1,6 +1,8 @@
 module github.com/soerenschneider/vault-pki-cli
 
-go 1.19
+go 1.21
+
+toolchain go1.22.1
 
 require (
 	github.com/go-playground/validator/v10 v10.15.5
@@ -14,11 +16,11 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.17.0
 	go.uber.org/multierr v1.11.0
+	golang.org/x/net v0.20.0
+	golang.org/x/sys v0.17.0
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
-	golang.org/x/net v0.20.0
-	golang.org/x/sys v0.17.0
 )
 
 require (
@@ -29,8 +31,8 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
-	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
+	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
