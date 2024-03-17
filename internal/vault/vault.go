@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -20,7 +21,8 @@ const (
 	// keys of the kv2 secret's map for the respective data
 	acmevaultKeyPrivateKey  = "private_key"
 	acmevaultKeyCertificate = "cert"
-	acmevaultKeyIssuer      = "dummyIssuer"
+	acmevaultKeyIssuer      = "issuer"
+	acmevaultVersion        = "version"
 
 	// the secret name (without the path) of the certificate saved by acmevault
 	acmevaultKv2SecretNameCertificate = "certificate"
@@ -189,18 +191,39 @@ func (c *VaultClient) readAcmeCert(commonName string) (*pki.CertData, error) {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, errors.New("read kv2 secret does not contain certificate data")
 	}
-	cert, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%s", rawCert))
+	cert, err := base64.StdEncoding.DecodeString(rawCert.(string))
 	if err != nil {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, errors.New("could not base64 decode cert")
 	}
+	cert = bytes.TrimRight(cert, "\n")
+
+	var version string
+	versionRaw, ok := data[acmevaultVersion]
+	if ok {
+		version = versionRaw.(string)
+	}
 
 	var issuer []byte
-	rawIssuer, ok := data[acmevaultKeyIssuer]
-	if ok {
-		ca, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%s", rawIssuer))
-		if err == nil {
-			issuer = ca
+	if version == "v1" {
+		rawIssuer, ok := data[acmevaultKeyIssuer]
+		if ok {
+			ca, err := base64.StdEncoding.DecodeString(rawIssuer.(string))
+			if err == nil {
+				issuer = bytes.TrimRight(ca, "\n")
+				// TODO: remove support in future, this is apparently a bug in acmevault
+				issuer = bytes.TrimLeft(issuer, "\n")
+				// TODO end
+			}
+		}
+	} else {
+		// TODO: remove support in the future
+		rawIssuer, ok := data["dummyIssuer"]
+		if ok {
+			ca, err := base64.StdEncoding.DecodeString(rawIssuer.(string))
+			if err == nil {
+				issuer = bytes.TrimRight(ca, "\n")
+			}
 		}
 	}
 
@@ -219,12 +242,14 @@ func (c *VaultClient) readAcmeSecret(commonName string) (*pki.CertData, error) {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, errors.New("read kv2 secret does not contain private key data")
 	}
-	privateKey, err := base64.StdEncoding.DecodeString(strings.TrimSpace(fmt.Sprintf("%s", rawKey)))
+
+	privateKey, err := base64.StdEncoding.DecodeString(rawKey.(string))
 	if err != nil {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, errors.New("could not base64 decode key")
 	}
 
+	privateKey = bytes.TrimRight(privateKey, "\n")
 	return &pki.CertData{PrivateKey: privateKey}, nil
 }
 
