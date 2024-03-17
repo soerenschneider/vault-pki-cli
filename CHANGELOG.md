@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.13.5](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.4...v1.13.5) (2024-03-17)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/go-jose/go-jose/v3 from 3.0.0 to 3.0.1 ([83fe417](https://github.com/soerenschneider/vault-pki-cli/commit/83fe417e7ef8a86b6af00595b15bf4e720b9a0b8))
+* **deps:** bump github.com/go-jose/go-jose/v3 from 3.0.1 to 3.0.3 ([4edd3d0](https://github.com/soerenschneider/vault-pki-cli/commit/4edd3d02dd9dfb1ed4ebf7c1db7b6f258f84854e))
+* **deps:** bump github.com/go-playground/validator/v10 ([6d9d3a6](https://github.com/soerenschneider/vault-pki-cli/commit/6d9d3a6a9323122d76d568c96f5dc905f7a1339e))
+* **deps:** bump github.com/go-playground/validator/v10 ([b75fa6c](https://github.com/soerenschneider/vault-pki-cli/commit/b75fa6c41955ca32297d9a52d9fa2e3c4e88319b))
+* **deps:** bump github.com/prometheus/client_golang ([f3f600c](https://github.com/soerenschneider/vault-pki-cli/commit/f3f600c73a05c9316af554a0012115c4528696b4))
+* **deps:** bump github.com/prometheus/common from 0.44.0 to 0.46.0 ([65d54e9](https://github.com/soerenschneider/vault-pki-cli/commit/65d54e948ad57b937a27e929b0afee844c0a8f28))
+* **deps:** bump github.com/rs/zerolog from 1.30.0 to 1.31.0 ([5e540e9](https://github.com/soerenschneider/vault-pki-cli/commit/5e540e91f78cbf53cb8fab04d99e8a737385cbfe))
+* **deps:** bump github.com/spf13/cobra from 1.7.0 to 1.8.0 ([5f5aa95](https://github.com/soerenschneider/vault-pki-cli/commit/5f5aa95432b012276aab9bce8359c50e8e11eca1))
+* **deps:** bump github.com/spf13/viper from 1.16.0 to 1.17.0 ([b5be99d](https://github.com/soerenschneider/vault-pki-cli/commit/b5be99db3ee3d4a1560330255aeeab308109ca82))
+* **deps:** bump golang from 1.21.1 to 1.21.2 ([00ef64b](https://github.com/soerenschneider/vault-pki-cli/commit/00ef64bf71154711f5d8989ca78aa49f919a9564))
+* **deps:** bump golang from 1.21.2 to 1.21.3 ([66f62a1](https://github.com/soerenschneider/vault-pki-cli/commit/66f62a1b7a143cff35f1f3c345c85ce6e8cff3cd))
+* **deps:** bump golang from 1.21.3 to 1.21.6 ([97d25e7](https://github.com/soerenschneider/vault-pki-cli/commit/97d25e7a17eeacc8c61a844a8ebc2285229b8e30))
+* **deps:** bump golang.org/x/crypto from 0.14.0 to 0.17.0 ([5168d47](https://github.com/soerenschneider/vault-pki-cli/commit/5168d4703eafde03000c644f228ef3fbdc51446c))
+* **deps:** bump golang.org/x/net from 0.14.0 to 0.15.0 ([ddbc820](https://github.com/soerenschneider/vault-pki-cli/commit/ddbc82091b6beccf1749ec37a4111ef931e16379))
+* **deps:** bump golang.org/x/net from 0.15.0 to 0.17.0 ([a1f3469](https://github.com/soerenschneider/vault-pki-cli/commit/a1f3469e2f094f867dcb07d4b41c2cbe28bdd3d9))
+* **deps:** bump golang.org/x/sys from 0.12.0 to 0.13.0 ([b04203d](https://github.com/soerenschneider/vault-pki-cli/commit/b04203db3739552826222d9a830e3d2f00b30d4c))
+* **deps:** bump google.golang.org/protobuf from 1.31.0 to 1.33.0 ([989817f](https://github.com/soerenschneider/vault-pki-cli/commit/989817f62e768a13c9725fda2fa7364c5f7ea4a0))
+* **deps:** bump k8s.io/client-go from 0.28.2 to 0.29.0 ([c2cb27c](https://github.com/soerenschneider/vault-pki-cli/commit/c2cb27c7e0e8a4e2a4e6d546eb6d1a965bfc9462))
+* improve handling cert data containing superfluous whitespaces ([8912651](https://github.com/soerenschneider/vault-pki-cli/commit/891265161bb34de46c1215f8128ad845c1df0f1f))
+* remove newlines from decoded base64 strings ([e0c8f75](https://github.com/soerenschneider/vault-pki-cli/commit/e0c8f7567f9d7cd992f30da504a9e4ee9e399183))
+
 ## [1.13.4](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.3...v1.13.4) (2023-08-05)
 
 
