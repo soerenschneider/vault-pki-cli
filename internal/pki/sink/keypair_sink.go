@@ -122,7 +122,7 @@ func (f *KeyPairSink) writeToCertAndCaSlot(certData *pki.CertData) error {
 	if certData.HasCaData() {
 		caData := certData.CaData
 		if !endsWithNewline(caData) {
-			data = append(caData, "\n"...)
+			caData = append(caData, "\n"...)
 		}
 		return f.ca.Write(caData)
 	}

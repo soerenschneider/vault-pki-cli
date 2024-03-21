@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// #nosec G101
 var exampleContainer = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAu3ajfQZjZvpsZkAtFDbaS3LBigdV5lBpnBDdPtE8HhbHZQmH
 EGXrIwE6vdRtPGsoaOssiJADezi/RV1QmtBpVMUvSU43U13EtPTpfqVKozX/hSYs
