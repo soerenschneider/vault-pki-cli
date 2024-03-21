@@ -89,7 +89,8 @@ func StartMetricsServer(addr string) error {
 
 func dumpMetrics() (string, error) {
 	var buf = &bytes.Buffer{}
-	enc := expfmt.NewEncoder(buf, expfmt.FmtText)
+	fmt := expfmt.NewFormat(expfmt.TypeTextPlain)
+	enc := expfmt.NewEncoder(buf, fmt)
 
 	families, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
