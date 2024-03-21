@@ -24,6 +24,9 @@ func (b *BufferPod) CanRead() error {
 }
 
 func (b *BufferPod) Write(data []byte) error {
+	if len(data) == 0 || data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
 	b.Data = data
 	return nil
 }

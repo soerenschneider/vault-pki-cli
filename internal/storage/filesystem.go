@@ -150,6 +150,10 @@ func (fs *FilesystemStorage) CanRead() error {
 }
 
 func (fs *FilesystemStorage) Write(signedData []byte) error {
+	if len(signedData) == 0 || signedData[len(signedData)-1] != '\n' {
+		signedData = append(signedData, '\n')
+	}
+
 	err := os.WriteFile(fs.FilePath, signedData, fs.Mode)
 	if err != nil {
 		return fmt.Errorf("could not write file '%s' to disk: %v", fs.FilePath, err)
