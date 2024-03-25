@@ -7,7 +7,7 @@ toolchain go1.22.1
 require (
 	github.com/go-playground/validator/v10 v10.15.5
 	github.com/hashicorp/vault/api v1.12.2
-	github.com/hashicorp/vault/api/auth/kubernetes v0.5.0
+	github.com/hashicorp/vault/api/auth/kubernetes v0.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/prometheus/common v0.50.0
