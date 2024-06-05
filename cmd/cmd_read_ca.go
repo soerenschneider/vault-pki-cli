@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/cenkalti/backoff/v3"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
@@ -34,7 +35,16 @@ func readCaEntryPoint(_ *cobra.Command, _ []string) {
 	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
-	certData, err := pkiImpl.FetchCa(config.DerEncoded)
+
+	var certData []byte
+	op := func() error {
+		var err error
+		certData, err = pkiImpl.FetchCa(config.DerEncoded)
+		return err
+	}
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+
+	err = backoff.Retry(op, backoffImpl)
 	DieOnErr(err, "Could not read cert data from vault")
 
 	sink, err := sink.CaSinkFromConfig(config.StorageConfig)

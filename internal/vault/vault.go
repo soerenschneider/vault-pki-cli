@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
@@ -66,9 +67,8 @@ func NewVaultPki(client *api.Client, auth AuthMethod, config *conf.Config) (*Vau
 }
 
 func (c *VaultClient) Revoke(serial string) error {
-	_, err := c.client.Auth().Login(context.Background(), c.auth)
-	if err != nil {
-		return fmt.Errorf("could not authenticate: %v", err)
+	if err := c.login(); err != nil {
+		return err
 	}
 
 	path := fmt.Sprintf("%s/revoke", c.mountPath)
@@ -78,6 +78,10 @@ func (c *VaultClient) Revoke(serial string) error {
 
 	resp, err := c.client.Logical().Write(path, data)
 	if err != nil {
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return backoff.Permanent(err)
+		}
 		return fmt.Errorf("could not revoke certificate: %v", err)
 	}
 
@@ -89,9 +93,8 @@ func (c *VaultClient) Revoke(serial string) error {
 }
 
 func (c *VaultClient) issue(opts *conf.Config) (*api.Secret, error) {
-	_, err := c.client.Auth().Login(context.Background(), c.auth)
-	if err != nil {
-		return nil, fmt.Errorf("could not authenticate: %v", err)
+	if err := c.login(); err != nil {
+		return nil, err
 	}
 
 	path := fmt.Sprintf("%s/issue/%s", c.mountPath, c.roleName)
@@ -99,14 +102,19 @@ func (c *VaultClient) issue(opts *conf.Config) (*api.Secret, error) {
 
 	secret, err := c.client.Logical().Write(path, data)
 	if err != nil {
-		return nil, fmt.Errorf("could not issue certificate: %v", err)
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return nil, backoff.Permanent(err)
+		}
+
+		return nil, fmt.Errorf("could not issue certificate: %w", err)
 	}
 
 	return secret, nil
 }
 
-func buildIssueArgs(opts *conf.Config) map[string]interface{} {
-	data := map[string]interface{}{
+func buildIssueArgs(opts *conf.Config) map[string]any {
+	data := map[string]any{
 		"common_name": opts.CommonName,
 		"ttl":         opts.Ttl,
 		"format":      "pem",
@@ -118,26 +126,26 @@ func buildIssueArgs(opts *conf.Config) map[string]interface{} {
 }
 
 func (c *VaultClient) sign(csr string, opts *conf.Config) (*api.Secret, error) {
-	_, err := c.client.Auth().Login(context.Background(), c.auth)
-	if err != nil {
-		return nil, fmt.Errorf("could not authenticate: %v", err)
+	if err := c.login(); err != nil {
+		return nil, err
 	}
 
 	path := fmt.Sprintf("%s/sign/%s", c.mountPath, c.roleName)
-	data, err := buildSignArgs(csr, opts)
-	if err != nil {
-		return nil, fmt.Errorf("could not build request, reading csr file failed: %v", err)
-	}
+	data := buildSignArgs(csr, opts)
 
 	secret, err := c.client.Logical().Write(path, data)
 	if err != nil {
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return nil, backoff.Permanent(err)
+		}
 		return nil, fmt.Errorf("could not issue certificate: %v", err)
 	}
 
 	return secret, nil
 }
 
-func buildSignArgs(csr string, opts *conf.Config) (map[string]interface{}, error) {
+func buildSignArgs(csr string, opts *conf.Config) map[string]interface{} {
 	data := map[string]interface{}{
 		"csr":         csr,
 		"common_name": opts.CommonName,
@@ -147,7 +155,7 @@ func buildSignArgs(csr string, opts *conf.Config) (map[string]interface{}, error
 		"alt_names":   strings.Join(opts.AltNames, ","),
 	}
 
-	return data, nil
+	return data
 }
 
 func (c *VaultClient) getAcmevaultDataPath(domain string, leaf string) string {
@@ -158,22 +166,26 @@ func (c *VaultClient) getAcmevaultDataPath(domain string, leaf string) string {
 func (c *VaultClient) readKv2Secret(path string) (map[string]interface{}, error) {
 	secret, err := c.client.Logical().Read(path)
 	if err != nil {
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return nil, backoff.Permanent(err)
+		}
 		return nil, fmt.Errorf("could not read kv2 data '%s': %w", path, err)
 	}
 	if secret == nil {
-		return nil, errors.New("read kv2 data is nil")
+		return nil, backoff.Permanent(errors.New("read kv2 data is nil"))
 	}
 
 	var data map[string]interface{}
 	_, ok := secret.Data["data"]
 	if !ok {
 		internal.MetricCertParseErrors.WithLabelValues(c.config.CommonName).Inc()
-		return nil, errors.New("read kv2 secret contains no data")
+		return nil, backoff.Permanent(errors.New("read kv2 secret contains no data"))
 	}
 	data, ok = secret.Data["data"].(map[string]interface{})
 	if !ok {
 		internal.MetricCertParseErrors.WithLabelValues(c.config.CommonName).Inc()
-		return nil, errors.New("read kv2 data is malformed")
+		return nil, backoff.Permanent(errors.New("read kv2 data is malformed"))
 	}
 
 	return data, nil
@@ -189,12 +201,12 @@ func (c *VaultClient) readAcmeCert(commonName string) (*pki.CertData, error) {
 	rawCert, ok := data[acmevaultKeyCertificate]
 	if !ok {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
-		return nil, errors.New("read kv2 secret does not contain certificate data")
+		return nil, backoff.Permanent(errors.New("read kv2 secret does not contain certificate data"))
 	}
 	cert, err := base64.StdEncoding.DecodeString(rawCert.(string))
 	if err != nil {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
-		return nil, errors.New("could not base64 decode cert")
+		return nil, backoff.Permanent(errors.New("could not base64 decode cert"))
 	}
 	cert = bytes.TrimRight(cert, "\n")
 
@@ -240,27 +252,39 @@ func (c *VaultClient) readAcmeSecret(commonName string) (*pki.CertData, error) {
 	rawKey, ok := data[acmevaultKeyPrivateKey]
 	if !ok {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
-		return nil, errors.New("read kv2 secret does not contain private key data")
+		return nil, backoff.Permanent(errors.New("read kv2 secret does not contain private key data"))
 	}
 
 	privateKey, err := base64.StdEncoding.DecodeString(rawKey.(string))
 	if err != nil {
 		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
-		return nil, errors.New("could not base64 decode key")
+		return nil, backoff.Permanent(errors.New("could not base64 decode key"))
 	}
 
 	privateKey = bytes.TrimRight(privateKey, "\n")
 	return &pki.CertData{PrivateKey: privateKey}, nil
 }
 
-func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertData, error) {
-	if conf == nil {
-		return nil, errors.New("nil config provided")
-	}
-
+func (c *VaultClient) login() error {
 	_, err := c.client.Auth().Login(context.Background(), c.auth)
 	if err != nil {
-		return nil, fmt.Errorf("could not authenticate: %v", err)
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return backoff.Permanent(err)
+		}
+		return fmt.Errorf("could not authenticate: %v", err)
+	}
+
+	return nil
+}
+
+func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertData, error) {
+	if conf == nil {
+		return nil, backoff.Permanent(errors.New("nil config provided"))
+	}
+
+	if err := c.login(); err != nil {
+		return nil, err
 	}
 
 	certData, err := c.readAcmeCert(commonName)
@@ -281,9 +305,8 @@ func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertD
 }
 
 func (c *VaultClient) Tidy() error {
-	_, err := c.client.Auth().Login(context.Background(), c.auth)
-	if err != nil {
-		return fmt.Errorf("could not authenticate: %v", err)
+	if err := c.login(); err != nil {
+		return err
 	}
 
 	path := fmt.Sprintf("%s/tidy", c.mountPath)
@@ -293,7 +316,7 @@ func (c *VaultClient) Tidy() error {
 		"tidy_revoked_certs": true,
 		"safety_buffer":      "90m",
 	}
-	_, err = c.client.Logical().Write(path, data)
+	_, err := c.client.Logical().Write(path, data)
 	if err != nil {
 		return fmt.Errorf("could not issue certificate: %v", err)
 	}
@@ -373,11 +396,51 @@ func (c *VaultClient) FetchCrl(binary bool) ([]byte, error) {
 func (c *VaultClient) readRaw(path string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	secret, err := c.client.Logical().ReadRawWithContext(ctx, path)
 
+	secret, err := c.client.Logical().ReadRawWithContext(ctx, path)
 	if err != nil {
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return nil, backoff.Permanent(err)
+		}
+
 		return nil, err
 	}
 
 	return io.ReadAll(secret.Body)
+}
+
+func shouldRetry(statusCode int) bool {
+	switch statusCode {
+	case 400, // Bad Request
+		401, // Unauthorized
+		403, // Forbidden
+		404, // Not Found
+		405, // Method Not Allowed
+		406, // Not Acceptable
+		407, // Proxy Authentication Required
+		409, // Conflict
+		410, // Gone
+		411, // Length Required
+		412, // Precondition Failed
+		413, // Payload Too Large
+		414, // URI Too Long
+		415, // Unsupported Media Type
+		416, // Range Not Satisfiable
+		417, // Expectation Failed
+		418, // I'm a Teapot
+		421, // Misdirected Request
+		422, // Unprocessable Entity
+		423, // Locked (WebDAV)
+		424, // Failed Dependency (WebDAV)
+		425, // Too Early
+		426, // Upgrade Required
+		428, // Precondition Required
+		429, // Too Many Requests
+		431, // Request Header Fields Too Large
+		451: // Unavailable For Legal Reasons
+		return false
+	default:
+		return true
+	}
 }

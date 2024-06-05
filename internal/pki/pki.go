@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
@@ -142,9 +143,13 @@ func (p *PkiCli) Revoke(serial string) error {
 	}
 
 	log.Info().Msgf("Attempting to revoke certificate %s", serial)
-	err := p.pkiImpl.Revoke(serial)
-	if err != nil {
-		return fmt.Errorf("could not revoke certificate: %v", err)
+	op := func() error {
+		return p.pkiImpl.Revoke(serial)
+	}
+
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	if err := backoff.Retry(op, backoffImpl); err != nil {
+		return fmt.Errorf("could not revoke certificate: %w", err)
 	}
 
 	log.Info().Msgf("Revoking certificate successful")
@@ -152,9 +157,13 @@ func (p *PkiCli) Revoke(serial string) error {
 }
 
 func (p *PkiCli) Tidy() error {
-	err := p.pkiImpl.Tidy()
-	if err != nil {
-		return fmt.Errorf("could not tidy certificate storage: %v", err)
+	op := func() error {
+		return p.pkiImpl.Tidy()
+	}
+
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	if err := backoff.Retry(op, backoffImpl); err != nil {
+		return fmt.Errorf("could not tidy certificate storage: %w", err)
 	}
 
 	log.Info().Msgf("Tidy blob storage scheduled")
@@ -178,12 +187,19 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	}
 
 	log.Info().Msgf("Trying to read certificate for domain '%s'", opts.CommonName)
-	cert, err := p.pkiImpl.ReadAcme(opts.CommonName, opts)
-	if err != nil {
-		return changed, fmt.Errorf("error issuing certificate %w", err)
+	var cert *CertData
+	op := func() error {
+		var err error
+		cert, err = p.pkiImpl.ReadAcme(opts.CommonName, opts)
+		return err
 	}
-	log.Info().Msg("Certificate successfully read from Vault kv2")
 
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	if err := backoff.Retry(op, backoffImpl); err != nil {
+		return changed, fmt.Errorf("error reading certificate %w", err)
+	}
+
+	log.Info().Msg("Certificate successfully read from Vault kv2")
 	// Update metrics for the just received cert
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
@@ -238,9 +254,15 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 		log.Warn().Err(err).Msg("Going to renew certificate")
 	}
 
+	var cert *CertData
+	op := func() error {
+		var err error
+		cert, err = p.pkiImpl.Issue(opts)
+		return err
+	}
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
 	log.Info().Msg("Issuing new certificate")
-	cert, err := p.pkiImpl.Issue(opts)
-	if err != nil {
+	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return Error, fmt.Errorf("error issuing certificate %v", err)
 	}
 	log.Info().Msg("New certificate successfully issued")
@@ -264,8 +286,15 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 }
 
 func (p *PkiCli) Verify(cert *x509.Certificate) error {
-	caData, err := p.pkiImpl.FetchCaChain()
-	if err != nil {
+	var caData []byte
+	op := func() error {
+		var err error
+		caData, err = p.pkiImpl.FetchCaChain()
+		return err
+	}
+
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return err
 	}
 
@@ -303,8 +332,14 @@ func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
 	}
 
 	log.Info().Msg("Trying to sign certificate")
-	resp, err := p.pkiImpl.Sign(string(csr), opts)
-	if err != nil {
+	var resp *Signature
+	op := func() error {
+		var err error
+		resp, err = p.pkiImpl.Sign(string(csr), opts)
+		return err
+	}
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("error signing CSR: %v", err)
 	}
 	log.Info().Msgf("CSR has been successfully signed using serial %s", resp.Serial)
