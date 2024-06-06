@@ -52,26 +52,26 @@ type Config struct {
 }
 
 func (c *Config) Print() {
-	log.Info().Msg("---")
-	log.Info().Msg("Active config values:")
+	log.Debug().Msg("---")
+	log.Debug().Msg("Active config values:")
 	val := reflect.ValueOf(c).Elem()
 	for i := 0; i < val.NumField(); i++ {
 		if !val.Field(i).IsZero() {
 			fieldName := val.Type().Field(i).Tag.Get("mapstructure")
 			_, isSensitive := sensitiveVars[fieldName]
 			if isSensitive {
-				log.Info().Msgf("%s=*** (redacted)", fieldName)
+				log.Debug().Msgf("%s=*** (redacted)", fieldName)
 			} else {
-				log.Info().Msgf("%s=%v", fieldName, val.Field(i))
+				log.Debug().Msgf("%s=%v", fieldName, val.Field(i))
 			}
 		}
 	}
-	log.Info().Msg("---")
+	log.Debug().Msg("---")
 }
 
 var (
 	validate *validator.Validate
-	once sync.Once
+	once     sync.Once
 )
 
 func (c *Config) Validate() error {
