@@ -94,8 +94,10 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 	}
 
 	DieOnErr(err, "issuing cert not successful", config)
-	if err := internal.WriteMetrics(config.MetricsFile); err != nil {
-		log.Warn().Err(err).Msg("could not write metrics")
+	if len(config.MetricsFile) > 0 {
+		if err := internal.WriteMetrics(config.MetricsFile); err != nil {
+			log.Warn().Err(err).Msg("could not write metrics")
+		}
 	}
 }
 
