@@ -318,7 +318,12 @@ func (c *VaultClient) Tidy() error {
 	}
 	_, err := c.client.Logical().Write(path, data)
 	if err != nil {
-		return fmt.Errorf("could not issue certificate: %v", err)
+		var respErr *api.ResponseError
+		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
+			return backoff.Permanent(err)
+		}
+
+		return err
 	}
 
 	return nil
