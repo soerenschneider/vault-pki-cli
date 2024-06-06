@@ -234,8 +234,10 @@ func (p *PkiCli) shouldIssue(format IssueSink) (bool, error) {
 		}
 	}
 
-	if err = p.Verify(cert); err != nil {
-		return true, fmt.Errorf("cert exists but can not be verified against ca: %w", err)
+	if !pkg.IsCertExpired(*cert) {
+		if err := p.Verify(cert); err != nil {
+			return true, fmt.Errorf("cert exists but can not be verified against ca: %w", err)
+		}
 	}
 
 	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(cert.SerialNumber))
@@ -251,7 +253,7 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 		log.Info().Msg("Cert exists and does not need a renewal")
 		return NotNeeded, nil
 	} else {
-		log.Warn().Err(err).Msg("Going to renew certificate")
+		log.Info().Err(err).Msg("Going to renew certificate")
 	}
 
 	var cert *CertData

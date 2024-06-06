@@ -126,9 +126,9 @@ func runAsDaemon(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiCli, 
 
 func issueCert(config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) error {
 	var serial string
-	x509cert, err := sink.ReadCert()
+	cert, err := sink.ReadCert()
 	if err == nil {
-		serial = pkg.FormatSerial(x509cert.SerialNumber)
+		serial = pkg.FormatSerial(cert.SerialNumber)
 	}
 
 	outcome, err := pkiImpl.Issue(sink, config)
@@ -141,8 +141,11 @@ func issueCert(config *conf.Config, pkiImpl *pki.PkiCli, sink pki.IssueSink) err
 		// overwrite outer 'err'
 		err = runPostIssueHooks(config)
 
-		if err := pkiImpl.Revoke(serial); err != nil {
-			log.Warn().Err(err).Msg("Revoking cert '%s' failed")
+		if !pkg.IsCertExpired(*cert) {
+			err := pkiImpl.Revoke(serial)
+			if err != nil {
+				log.Warn().Err(err).Str("serial", serial).Msg("Revoking cert failed")
+			}
 		}
 	}
 

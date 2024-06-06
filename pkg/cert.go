@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func ParsePrivate(data []byte) (any, error) {
@@ -77,4 +78,8 @@ func FormatSerial(i *big.Int) string {
 	}
 	re := regexp.MustCompile("..")
 	return strings.TrimRight(re.ReplaceAllString(hex, "$0:"), ":")
+}
+
+func IsCertExpired(cert x509.Certificate) bool {
+	return time.Now().After(cert.NotAfter)
 }

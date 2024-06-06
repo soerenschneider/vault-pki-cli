@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
@@ -46,10 +47,15 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
 	DieOnErr(err, "could not build keypair")
 
-	content, err := sink.ReadCert()
+	cert, err := sink.ReadCert()
 	DieOnErr(err, "can not read certificate")
 
-	serial := pkg.FormatSerial(content.SerialNumber)
+	if pkg.IsCertExpired(*cert) {
+		log.Info().Msg("Certificate is expired, no revocation needed")
+		return
+	}
+
+	serial := pkg.FormatSerial(cert.SerialNumber)
 	err = pkiImpl.Revoke(serial)
 	DieOnErr(err, "could not revoke cert")
 }
