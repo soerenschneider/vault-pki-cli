@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog"
@@ -9,6 +10,7 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"golang.org/x/term"
 )
 
 type ZeroLogAdapter struct {
@@ -90,4 +92,21 @@ func buildAuthImpl(conf *conf.Config) (vault.AuthMethod, error) {
 
 func PrintVersionInfo() {
 	log.Info().Msgf("Version %s (%s)", internal.BuildVersion, internal.CommitHash)
+}
+
+func setupLogLevel(debug bool) {
+	level := zerolog.InfoLevel
+	if debug {
+		level = zerolog.DebugLevel
+	}
+	zerolog.SetGlobalLevel(level)
+}
+
+func initLogging() {
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		log.Logger = log.Output(zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: "15:04:05",
+		})
+	}
 }

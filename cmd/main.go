@@ -6,13 +6,11 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/spf13/pflag"
 
-	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,10 +22,7 @@ const (
 )
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{
-		Out:        os.Stderr,
-		TimeFormat: time.RFC3339,
-	})
+	initLogging()
 
 	root := &cobra.Command{
 		Use:   "vault-pki-cli",
@@ -132,5 +127,6 @@ func config() (*conf.Config, error) {
 		log.Fatal().Msgf("unable to decode into struct, %v", err)
 	}
 
+	setupLogLevel(config.Debug)
 	return config, nil
 }

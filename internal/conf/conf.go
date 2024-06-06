@@ -35,6 +35,7 @@ type Config struct {
 	Ttl        string   `mapstructure:"ttl"`
 	IpSans     []string `mapstructure:"ip-sans"`
 	AltNames   []string `mapstructure:"alt-names"`
+	Debug      bool     `mapstructure:"debug"`
 
 	AcmePrefix string `mapstructure:"acme-prefix"`
 
