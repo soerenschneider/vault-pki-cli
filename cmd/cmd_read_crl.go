@@ -11,7 +11,7 @@ import (
 func readCrlCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-crl",
-		Short: "ReadCert pki crl from vault",
+		Short: "Read pki crl from vault",
 		Run:   readCrlEntryPoint,
 	}
 

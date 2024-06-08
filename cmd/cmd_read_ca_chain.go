@@ -11,7 +11,7 @@ import (
 func readCaChainCmd() *cobra.Command {
 	var getCaCmd = &cobra.Command{
 		Use:   "read-ca-chain",
-		Short: "ReadCert pki ca cert chain from vault",
+		Short: "Read pki ca cert chain from vault",
 		Run:   fetchCaChainEntryPoint,
 	}
 
