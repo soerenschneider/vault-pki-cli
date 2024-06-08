@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.14.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.5...v1.14.0) (2024-06-08)
+
+
+### Features
+
+* add flag for controlling printing debug logs ([2b9ba62](https://github.com/soerenschneider/vault-pki-cli/commit/2b9ba62a68559687b400af31f0fefb6d5dc6b6f2))
+* increase resilience by using backoff mechanism ([1f6879e](https://github.com/soerenschneider/vault-pki-cli/commit/1f6879ee1214af818bc231d6718df6d20ee3ae81))
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/go-playground/validator/v10 ([2e6d797](https://github.com/soerenschneider/vault-pki-cli/commit/2e6d79754c8cfc8e2277e969614588a73c88c339))
+* **deps:** bump github.com/hashicorp/vault/api/auth/kubernetes ([696cded](https://github.com/soerenschneider/vault-pki-cli/commit/696cdeda0d3176b9d7c2a8850af14dde5ba5cf4b))
+* **deps:** bump github.com/prometheus/client_golang ([5b96e58](https://github.com/soerenschneider/vault-pki-cli/commit/5b96e58092446c3d10c3a68b806ffa15311af220))
+* **deps:** bump github.com/prometheus/common from 0.50.0 to 0.54.0 ([1a58b98](https://github.com/soerenschneider/vault-pki-cli/commit/1a58b985f85b8759417c6dd90b157ce2ded4400c))
+* **deps:** bump github.com/rs/zerolog from 1.31.0 to 1.33.0 ([4381a7b](https://github.com/soerenschneider/vault-pki-cli/commit/4381a7b19c02578505b32ce21b57420fa1d1ab18))
+* **deps:** bump github.com/spf13/viper from 1.17.0 to 1.18.2 ([bb5bbbf](https://github.com/soerenschneider/vault-pki-cli/commit/bb5bbbf6a99a1af1bf1b605bfd02d88ea34810f8))
+* **deps:** bump github.com/spf13/viper from 1.18.2 to 1.19.0 ([28fc787](https://github.com/soerenschneider/vault-pki-cli/commit/28fc787de0639a4065321e49b38133264e05a842))
+* **deps:** bump golang from 1.22.1 to 1.22.3 ([1796e46](https://github.com/soerenschneider/vault-pki-cli/commit/1796e4683cbfb0118ad0d0d2f4781f3f8a8f89a9))
+* **deps:** bump k8s.io/api from 0.29.3 to 0.30.1 ([a2fe1d6](https://github.com/soerenschneider/vault-pki-cli/commit/a2fe1d6c95946c54d0c5da8799c60866f4e024f1))
+* **deps:** bump k8s.io/apimachinery from 0.29.3 to 0.30.1 ([50882d1](https://github.com/soerenschneider/vault-pki-cli/commit/50882d1974fc1b640fb8e9cd693e1debce7e0bad))
+* **deps:** bump k8s.io/client-go from 0.29.3 to 0.30.1 ([c52f827](https://github.com/soerenschneider/vault-pki-cli/commit/c52f8271eea0111038ae9af7f9f42f8506748de2))
+* do not try to revoke expired certificates ([16f1a80](https://github.com/soerenschneider/vault-pki-cli/commit/16f1a8035214165e4fdd556b39282afab47cdc68))
+* fix typos in cmd's help messages ([d92d10c](https://github.com/soerenschneider/vault-pki-cli/commit/d92d10ce9cee2e4ae76eaa563958c5641a967df1))
+* mark appropriate errors as permanent ([9203aaa](https://github.com/soerenschneider/vault-pki-cli/commit/9203aaa1b61878635f982e1480b3fb873443d50c))
+* only try to write metrics when metrics file is passed ([c821b78](https://github.com/soerenschneider/vault-pki-cli/commit/c821b78e457a335d0c5756466b9e9bddf9ca4713))
+
 ## [1.13.5](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.4...v1.13.5) (2024-03-21)
 
 
