@@ -47,8 +47,10 @@ func getIssueCmd() *cobra.Command {
 	issueCmd.Flags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
 	issueCmd.Flags().StringSlice(conf.FLAG_ISSUE_HOOKS, []string{}, "Run commands after issuing a new certificate.")
 	issueCmd.Flags().StringSlice(conf.FLAG_ISSUE_BACKEND_CONFIG, []string{}, "Backend config.")
+	issueCmd.Flags().Uint64(conf.FLAG_RETRIES, conf.FLAG_RETRIES_DEFAULT, "How many retries to perform for non-permanent errors")
 
 	viper.SetDefault(conf.FLAG_ISSUE_TTL, conf.FLAG_ISSUE_TTL_DEFAULT)
+	viper.SetDefault(conf.FLAG_RETRIES, conf.FLAG_RETRIES_DEFAULT)
 	viper.SetDefault(conf.FLAG_ISSUE_DAEMONIZE, conf.FLAG_ISSUE_DAEMONIZE_DEFAULT)
 	viper.SetDefault(conf.FLAG_ISSUE_METRICS_ADDR, conf.FLAG_ISSUE_METRICS_ADDR_DEFAULT)
 	viper.SetDefault(conf.FLAG_METRICS_FILE, "")
@@ -178,7 +180,7 @@ func buildDependencies(config *conf.Config) (*pki.PkiCli, pki.IssueSink) {
 	strat, err := buildRenewalStrategy(config)
 	DieOnErr(err, "can't build renewal strategy", config)
 
-	pkiImpl, err := pki.NewPki(vaultBackend, strat)
+	pkiImpl, err := pki.NewPki(vaultBackend, strat, config)
 	DieOnErr(err, "can't build pki impl", config)
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)

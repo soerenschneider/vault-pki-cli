@@ -33,6 +33,7 @@ func getSignCmd() *cobra.Command {
 	signCmd.PersistentFlags().StringP(conf.FLAG_METRICS_FILE, "", "", "File to write metrics to")
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_IP_SANS, "", []string{}, "Specifies requested IP Subject Alternative Names, in a comma-delimited list. Only valid if the role allows IP SANs (which is the default).")
 	signCmd.PersistentFlags().StringArrayP(conf.FLAG_ISSUE_ALT_NAMES, "", []string{}, "Specifies requested Subject Alternative Names, in a comma-delimited list. These can be host names or email addresses; they will be parsed into their respective fields. If any requested names do not match role policy, the entire request will be denied.")
+	signCmd.PersistentFlags().Uint64(conf.FLAG_RETRIES, conf.FLAG_RETRIES_DEFAULT, "How many retries to perform for non-permanent errors")
 
 	signCmd.MarkFlagRequired(conf.FLAG_CERTIFICATE_FILE)  // nolint:errcheck
 	signCmd.MarkFlagRequired(conf.FLAG_CSR_FILE)          // nolint:errcheck
@@ -76,7 +77,7 @@ func signCert(config *conf.Config) error {
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, &issue_strategies.StaticRenewal{Decision: false})
+	pkiImpl, err := pki.NewPki(vaultBackend, &issue_strategies.StaticRenewal{Decision: false}, config)
 	DieOnErr(err, "can't build pki impl")
 
 	sink, err := sink.CsrSinkFromConfig(config.StorageConfig)

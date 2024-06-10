@@ -23,6 +23,7 @@ func getReadAcmeCmd() *cobra.Command {
 	issueCmd.Flags().StringP(conf.FLAG_METRICS_FILE, "", "", "File to write metrics to")
 	issueCmd.Flags().StringP(conf.FLAG_READACME_ACME_PREFIX, "", conf.FLAG_READACME_ACME_PREFIX_DEFAULT, "Prefix for Acmevault kv2 secret paths")
 	issueCmd.Flags().StringP(conf.FLAG_VAULT_MOUNT_KV2, "", conf.FLAG_VAULT_MOUNT_KV2_DEFAULT, "Mount path for kv2 secret")
+	issueCmd.Flags().Uint64(conf.FLAG_RETRIES, conf.FLAG_RETRIES_DEFAULT, "How many retries to perform for non-permanent errors")
 
 	viper.SetDefault(conf.FLAG_METRICS_FILE, "")
 	viper.SetDefault(conf.FLAG_READACME_ACME_PREFIX, conf.FLAG_READACME_ACME_PREFIX_DEFAULT)
@@ -71,7 +72,7 @@ func readAcmeCert(config *conf.Config) error {
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, nil)
+	pkiImpl, err := pki.NewPki(vaultBackend, nil, config)
 	DieOnErr(err, "can't build pki impl")
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)

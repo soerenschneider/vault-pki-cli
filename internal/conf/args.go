@@ -23,6 +23,8 @@ const (
 	FLAG_READACME_ACME_PREFIX                = "acme-prefix"
 
 	FLAG_ISSUE_TTL          = "ttl"
+	FLAG_RETRIES            = "retries"
+	FLAG_RETRIES_DEFAULT    = 15
 	FLAG_ISSUE_DAEMONIZE    = "daemonize"
 	FLAG_ISSUE_IP_SANS      = "ip-sans"
 	FLAG_ISSUE_COMMON_NAME  = "common-name"

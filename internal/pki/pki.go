@@ -106,19 +106,26 @@ func (cert *Signature) HasCaData() bool {
 type PkiCli struct {
 	pkiImpl  Pki
 	strategy issue_strategies.IssueStrategy
+	conf     *conf.Config
 }
 
-func NewPki(pki Pki, strategy issue_strategies.IssueStrategy) (*PkiCli, error) {
+func NewPki(pki Pki, strategy issue_strategies.IssueStrategy, conf *conf.Config) (*PkiCli, error) {
 	if pki == nil {
 		return nil, errors.New("empty pki impl provided")
 	}
+
 	if strategy == nil {
 		strategy = &issue_strategies.StaticRenewal{Decision: true}
+	}
+
+	if conf == nil {
+		return nil, errors.New("empty config provided")
 	}
 
 	return &PkiCli{
 		pkiImpl:  pki,
 		strategy: strategy,
+		conf:     conf,
 	}, nil
 }
 
@@ -147,7 +154,7 @@ func (p *PkiCli) Revoke(serial string) error {
 		return p.pkiImpl.Revoke(serial)
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("could not revoke certificate: %w", err)
 	}
@@ -161,7 +168,7 @@ func (p *PkiCli) Tidy() error {
 		return p.pkiImpl.Tidy()
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("could not tidy certificate storage: %w", err)
 	}
@@ -194,7 +201,7 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 		return err
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return changed, fmt.Errorf("error reading certificate %w", err)
 	}
@@ -262,7 +269,7 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 		cert, err = p.pkiImpl.Issue(opts)
 		return err
 	}
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	log.Info().Msg("Issuing new certificate")
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return Error, fmt.Errorf("error issuing certificate %v", err)
@@ -295,7 +302,7 @@ func (p *PkiCli) Verify(cert *x509.Certificate) error {
 		return err
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return err
 	}
@@ -340,7 +347,7 @@ func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
 		resp, err = p.pkiImpl.Sign(string(csr), opts)
 		return err
 	}
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 15)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("error signing CSR: %v", err)
 	}

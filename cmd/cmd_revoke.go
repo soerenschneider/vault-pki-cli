@@ -18,6 +18,7 @@ func getRevokeCmd() *cobra.Command {
 		Run:   revokeCertEntryPoint,
 	}
 
+	revokeCmd.Flags().Uint64(conf.FLAG_RETRIES, conf.FLAG_RETRIES_DEFAULT, "How many retries to perform for non-permanent errors")
 	revokeCmd.Flags().StringP(conf.FLAG_CERTIFICATE_FILE, "c", "", "Certificate to read serial from")
 
 	return revokeCmd
@@ -41,7 +42,7 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
 	DieOnErr(err, "could not build rotation client")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, nil)
+	pkiImpl, err := pki.NewPki(vaultBackend, nil, config)
 	DieOnErr(err, "could not build pki impl")
 
 	sink, err := sink.MultiKeyPairSinkFromConfig(config)
