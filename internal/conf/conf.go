@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog/log"
@@ -32,6 +33,7 @@ type Config struct {
 	Daemonize bool `mapstructure:"daemonize"`
 
 	CommonName string   `mapstructure:"common-name"`
+	Ttl        string   `mapstructure:"ttl" validate:"ttl"`
 	Retries    uint64   `mapstructure:"retries" validate:"gte=0,lte=30"`
 	IpSans     []string `mapstructure:"ip-sans"`
 	AltNames   []string `mapstructure:"alt-names"`
@@ -77,6 +79,10 @@ var (
 func (c *Config) Validate() error {
 	once.Do(func() {
 		validate = validator.New()
+
+		if err := validate.RegisterValidation("ttl", validateBrokers); err != nil {
+			log.Fatal().Err(err).Msg("could not build custom validation 'ttl'")
+		}
 	})
 
 	return validate.Struct(c)
@@ -94,4 +100,21 @@ func (c *Config) ValidateIssue() error {
 	}
 
 	return err
+}
+
+func validateBrokers(fl validator.FieldLevel) bool {
+	// Get the field value and check if it's a slice
+	field := fl.Field()
+	if field.Kind() != reflect.String {
+		return false
+	}
+
+	// Convert to string and check its value
+	ttl := field.String()
+	d, err := time.ParseDuration(ttl)
+	if err != nil {
+		return false
+	}
+
+	return d.Seconds() >= 600
 }
