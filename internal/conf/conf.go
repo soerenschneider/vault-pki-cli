@@ -33,7 +33,7 @@ type Config struct {
 	Daemonize bool `mapstructure:"daemonize"`
 
 	CommonName string   `mapstructure:"common-name"`
-	Ttl        string   `mapstructure:"ttl" validate:"ttl"`
+	Ttl        string   `mapstructure:"ttl" validate:"omitempty,ttl"`
 	Retries    uint64   `mapstructure:"retries" validate:"gte=0,lte=30"`
 	IpSans     []string `mapstructure:"ip-sans"`
 	AltNames   []string `mapstructure:"alt-names"`
