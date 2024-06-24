@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.15.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.14.0...v1.15.0) (2024-06-24)
+
+
+### Features
+
+* add custom validation for ttl ([5c45898](https://github.com/soerenschneider/vault-pki-cli/commit/5c45898c6877ac16c006ab71d68e61f8a9a57f7c))
+* make max amount of retries configurable ([e5244b7](https://github.com/soerenschneider/vault-pki-cli/commit/e5244b7e96fa35c18d8f2a54a547e2b6dad6c4ba))
+
+
+### Bug Fixes
+
+* don't validate ttl if not specified ([2a3a4c3](https://github.com/soerenschneider/vault-pki-cli/commit/2a3a4c300d71de752e93eea168f2cca82161e3cb))
+
 ## [1.14.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.13.5...v1.14.0) (2024-06-08)
 
 
