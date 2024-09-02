@@ -1,7 +1,7 @@
-package storage
+package backend
 
 import (
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 )
 
 type BufferPod struct {

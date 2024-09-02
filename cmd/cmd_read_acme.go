@@ -1,15 +1,17 @@
 package main
 
 import (
+	"time"
+
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/net/context"
 )
 
 func getReadAcmeCmd() *cobra.Command {
@@ -69,16 +71,27 @@ func readAcmeCert(config *conf.Config) error {
 	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth")
 
-	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = authStrategy.Login(ctx, vaultClient)
+	DieOnErr(err, "can't login to vault")
+
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	vaultBackend, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, nil, config)
+	pkiImpl, err := pki.NewPkiService(vaultBackend, nil)
 	DieOnErr(err, "can't build pki impl")
 
-	sink, err := sink.MultiKeyPairSinkFromConfig(config)
+	sink, err := storage.MultiKeyPairStorageFromConfig(config)
 	DieOnErr(err, "can't build sink")
 
-	changed, err := pkiImpl.ReadAcme(sink, config)
+	changed, err := pkiImpl.ReadAcme(ctx, sink, config.CommonName)
 	DieOnErr(err, "can't read acme cert")
 
 	if !changed {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"

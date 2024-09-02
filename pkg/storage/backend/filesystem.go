@@ -1,11 +1,11 @@
-package storage
+package backend
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/rs/zerolog/log"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 
 	"net/url"
 	"os"

@@ -6,16 +6,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"math"
-	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
-	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
+	"golang.org/x/net/context"
 )
 
 type IssueOutcome int
@@ -26,24 +23,32 @@ const (
 	Error     = 2
 )
 
-type Pki interface {
+var ErrNoCertFound = errors.New("data not found")
+
+// StorageImplementation is a simple wrapper around a key artifact (cert, key, ca, crl, csr). This enables decoupling
+// from the actual resource (file-based, kubernetes, network, ..) and make it interchangeable.
+type StorageImplementation interface {
+	Read() ([]byte, error)
+	CanRead() error
+	Write([]byte) error
+	CanWrite() error
+}
+
+type PkiClient interface {
 	// Issue issues a new certificate from the PKI
-	Issue(opts *conf.Config) (*CertData, error)
+	Issue(ctx context.Context, args pkg.IssueArgs) (*pkg.CertData, error)
 
 	// Sign signs a CSR
-	Sign(csr string, opts *conf.Config) (*Signature, error)
+	Sign(ctx context.Context, csr string, args pkg.SignatureArgs) (*pkg.Signature, error)
 
 	// Revoke revokes a certificate by its serial number
-	Revoke(serial string) error
+	Revoke(ctx context.Context, serial string) error
 
 	// ReadAcme reads a previously acquired letsencrypt certificate from Vault
-	ReadAcme(commonName string, config *conf.Config) (*CertData, error)
+	ReadAcme(ctx context.Context, commonName string) (*pkg.CertData, error)
 
 	// Tidy cleans up the PKI blob storage of dangling certificates
-	Tidy() error
-
-	// Cleanup cleans up the used resources of the client is not related to PKI operations
-	Cleanup() error
+	Tidy(ctx context.Context) error
 
 	// FetchCa returns the CA for the configured mount
 	FetchCa(binary bool) ([]byte, error)
@@ -55,61 +60,12 @@ type Pki interface {
 	FetchCrl(binary bool) ([]byte, error)
 }
 
-type CertData struct {
-	PrivateKey  []byte
-	Certificate []byte
-	CaData      []byte
-	Csr         []byte
-}
-
-func (certData *CertData) AsContainer() string {
-	var buffer strings.Builder
-
-	if certData.HasCaData() {
-		buffer.Write(certData.CaData)
-		buffer.Write([]byte("\n"))
-	}
-
-	buffer.Write(certData.Certificate)
-	buffer.Write([]byte("\n"))
-
-	if certData.HasPrivateKey() {
-		buffer.Write(certData.PrivateKey)
-		buffer.Write([]byte("\n"))
-	}
-
-	return buffer.String()
-}
-
-func (cert *CertData) HasPrivateKey() bool {
-	return len(cert.PrivateKey) > 0
-}
-
-func (cert *CertData) HasCertificate() bool {
-	return len(cert.Certificate) > 0
-}
-
-func (cert *CertData) HasCaData() bool {
-	return len(cert.CaData) > 0
-}
-
-type Signature struct {
-	Certificate []byte
-	CaData      []byte
-	Serial      string
-}
-
-func (cert *Signature) HasCaData() bool {
-	return len(cert.CaData) > 0
-}
-
-type PkiCli struct {
-	pkiImpl  Pki
+type PkiService struct {
+	pkiImpl  PkiClient
 	strategy issue_strategies.IssueStrategy
-	conf     *conf.Config
 }
 
-func NewPki(pki Pki, strategy issue_strategies.IssueStrategy, conf *conf.Config) (*PkiCli, error) {
+func NewPkiService(pki PkiClient, strategy issue_strategies.IssueStrategy) (*PkiService, error) {
 	if pki == nil {
 		return nil, errors.New("empty pki impl provided")
 	}
@@ -118,43 +74,23 @@ func NewPki(pki Pki, strategy issue_strategies.IssueStrategy, conf *conf.Config)
 		strategy = &issue_strategies.StaticRenewal{Decision: true}
 	}
 
-	if conf == nil {
-		return nil, errors.New("empty config provided")
-	}
-
-	return &PkiCli{
+	return &PkiService{
 		pkiImpl:  pki,
 		strategy: strategy,
-		conf:     conf,
 	}, nil
 }
 
-func updateCertificateMetrics(cert *x509.Certificate) {
-	if cert == nil {
-		return
-	}
-
-	secondsTotal := cert.NotAfter.Sub(cert.NotBefore).Seconds()
-	internal.MetricCertLifetimeTotal.WithLabelValues(cert.Subject.CommonName).Set(secondsTotal)
-	secondsUntilExpiration := time.Until(cert.NotAfter).Seconds()
-
-	percentage := math.Max(0, secondsUntilExpiration*100./secondsTotal)
-
-	internal.MetricCertExpiry.WithLabelValues(cert.Subject.CommonName).Set(float64(cert.NotAfter.UnixMilli()))
-	internal.MetricCertLifetimePercent.WithLabelValues(cert.Subject.CommonName).Set(percentage)
-}
-
-func (p *PkiCli) Revoke(serial string) error {
+func (p *PkiService) Revoke(ctx context.Context, serial string) error {
 	if len(serial) == 0 {
 		return errors.New("can't revoke, empty cert serial provided")
 	}
 
 	log.Info().Msgf("Attempting to revoke certificate %s", serial)
 	op := func() error {
-		return p.pkiImpl.Revoke(serial)
+		return p.pkiImpl.Revoke(ctx, serial)
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("could not revoke certificate: %w", err)
 	}
@@ -163,12 +99,12 @@ func (p *PkiCli) Revoke(serial string) error {
 	return nil
 }
 
-func (p *PkiCli) Tidy() error {
+func (p *PkiService) Tidy(ctx context.Context) error {
 	op := func() error {
-		return p.pkiImpl.Tidy()
+		return p.pkiImpl.Tidy(ctx)
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("could not tidy certificate storage: %w", err)
 	}
@@ -177,15 +113,7 @@ func (p *PkiCli) Tidy() error {
 	return nil
 }
 
-func (p *PkiCli) cleanup() {
-	log.Info().Msg("Cleaning up the backend...")
-	err := p.pkiImpl.Cleanup()
-	if err != nil {
-		log.Error().Msgf("Cleanup of the backend failed: %v", err)
-	}
-}
-
-func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
+func (p *PkiService) ReadAcme(ctx context.Context, format IssueStorage, commonName string) (bool, error) {
 	var changed bool
 	certData, err := format.ReadCert()
 	if err != nil || certData == nil {
@@ -193,15 +121,15 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 		changed = true
 	}
 
-	log.Info().Msgf("Trying to read certificate for domain '%s'", opts.CommonName)
-	var cert *CertData
+	log.Info().Msgf("Trying to read certificate for domain '%s'", commonName)
+	var cert *pkg.CertData
 	op := func() error {
 		var err error
-		cert, err = p.pkiImpl.ReadAcme(opts.CommonName, opts)
+		cert, err = p.pkiImpl.ReadAcme(ctx, commonName)
 		return err
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return changed, fmt.Errorf("error reading certificate %w", err)
 	}
@@ -210,11 +138,9 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	// Update metrics for the just received cert
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
-		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
 		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("Read certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
-		updateCertificateMetrics(x509Cert)
 	}
 
 	if !changed {
@@ -229,7 +155,7 @@ func (p *PkiCli) ReadAcme(format IssueSink, opts *conf.Config) (bool, error) {
 	return changed, nil
 }
 
-func (p *PkiCli) shouldIssue(format IssueSink) (bool, error) {
+func (p *PkiService) shouldIssue(format IssueStorage) (bool, error) {
 	cert, err := format.ReadCert()
 	if err != nil || cert == nil {
 		if errors.Is(err, ErrNoCertFound) {
@@ -248,13 +174,10 @@ func (p *PkiCli) shouldIssue(format IssueSink) (bool, error) {
 	}
 
 	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(cert.SerialNumber))
-	updateCertificateMetrics(cert)
 	return p.strategy.Renew(cert)
 }
 
-func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error) {
-	defer p.cleanup()
-
+func (p *PkiService) Issue(ctx context.Context, format IssueStorage, args pkg.IssueArgs) (IssueOutcome, error) {
 	shouldIssue, err := p.shouldIssue(format)
 	if err == nil && !shouldIssue {
 		log.Info().Msg("Cert exists and does not need a renewal")
@@ -263,13 +186,13 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 		log.Info().Err(err).Msg("Going to renew certificate")
 	}
 
-	var cert *CertData
+	var cert *pkg.CertData
 	op := func() error {
 		var err error
-		cert, err = p.pkiImpl.Issue(opts)
+		cert, err = p.pkiImpl.Issue(ctx, args)
 		return err
 	}
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	log.Info().Msg("Issuing new certificate")
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return Error, fmt.Errorf("error issuing certificate %v", err)
@@ -279,11 +202,9 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
-		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
 		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
-		updateCertificateMetrics(x509Cert)
 	}
 
 	err = format.WriteCert(cert)
@@ -294,7 +215,7 @@ func (p *PkiCli) Issue(format IssueSink, opts *conf.Config) (IssueOutcome, error
 	return Issued, nil
 }
 
-func (p *PkiCli) Verify(cert *x509.Certificate) error {
+func (p *PkiService) Verify(cert *x509.Certificate) error {
 	var caData []byte
 	op := func() error {
 		var err error
@@ -302,7 +223,7 @@ func (p *PkiCli) Verify(cert *x509.Certificate) error {
 		return err
 	}
 
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return err
 	}
@@ -332,22 +253,20 @@ func verifyCertAgainstCa(cert, ca *x509.Certificate) error {
 	return err
 }
 
-func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
-	defer p.cleanup()
-
+func (p *PkiService) Sign(ctx context.Context, sink CsrStorage, args pkg.SignatureArgs) error {
 	csr, err := sink.ReadCsr()
 	if err != nil {
 		return err
 	}
 
 	log.Info().Msg("Trying to sign certificate")
-	var resp *Signature
+	var resp *pkg.Signature
 	op := func() error {
 		var err error
-		resp, err = p.pkiImpl.Sign(string(csr), opts)
+		resp, err = p.pkiImpl.Sign(ctx, string(csr), args)
 		return err
 	}
-	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), p.conf.Retries)
+	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
 		return fmt.Errorf("error signing CSR: %v", err)
 	}
@@ -356,11 +275,9 @@ func (p *PkiCli) Sign(sink CsrSink, opts *conf.Config) error {
 	// Update metrics for the just received blob
 	x509Cert, err := pkg.ParseCertPem(resp.Certificate)
 	if err != nil {
-		internal.MetricCertParseErrors.WithLabelValues(opts.CommonName).Set(1)
 		log.Error().Msgf("Could not parse certificate data: %v", err)
 	} else {
 		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
-		updateCertificateMetrics(x509Cert)
 	}
 
 	err = sink.WriteSignature(resp)

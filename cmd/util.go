@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/auth/approle"
+	"github.com/hashicorp/vault/api/auth/kubernetes"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
@@ -66,25 +68,22 @@ func buildVaultClient(config *conf.Config) (*api.Client, error) {
 	return vaultClient, nil
 }
 
-func buildAuthImpl(conf *conf.Config) (vault.AuthMethod, error) {
+func buildAuthImpl(conf *conf.Config) (api.AuthMethod, error) {
 	switch conf.VaultAuthMethod {
-	case "token":
-		log.Info().Msg("Building 'token' vault auth...")
-		return vault.NewTokenAuth(conf.VaultToken)
 	case "kubernetes":
 		log.Info().Msg("Building 'kubernetes' vault auth...")
-		return vault.NewVaultKubernetesAuth(conf.VaultAuthK8sRole)
+		return kubernetes.NewKubernetesAuth(conf.VaultAuthK8sRole)
 	case "approle":
-		approleData := make(map[string]string)
-		approleData[vault.KeyRoleId] = conf.VaultRoleId
-		approleData[vault.KeySecretId] = conf.VaultSecretId
-		approleData[vault.KeySecretIdFile] = conf.VaultSecretIdFile
-
-		log.Info().Msg("Building 'approle' vault auth...")
-		return vault.NewAppRoleAuth(approleData, conf.VaultMountApprole)
+		secretId := &approle.SecretID{}
+		if len(conf.VaultSecretIdFile) > 0 {
+			secretId.FromFile = conf.VaultSecretIdFile
+		} else {
+			secretId.FromString = conf.VaultSecretId
+		}
+		return approle.NewAppRoleAuth(conf.VaultRoleId, secretId)
 	case "implicit":
 		log.Info().Msg("Building 'implicit' vault auth...")
-		return vault.NewTokenImplicitAuth(), nil
+		return vault.NewNoAuth(), nil
 	}
 
 	return nil, fmt.Errorf("unknown auth strategy '%s'", conf.VaultAuthMethod)

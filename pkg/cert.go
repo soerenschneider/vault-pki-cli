@@ -11,6 +11,44 @@ import (
 	"time"
 )
 
+type CertData struct {
+	PrivateKey  []byte
+	Certificate []byte
+	CaData      []byte
+	Csr         []byte
+}
+
+func (certData *CertData) AsContainer() string {
+	var buffer strings.Builder
+
+	if certData.HasCaData() {
+		buffer.Write(certData.CaData)
+		buffer.Write([]byte("\n"))
+	}
+
+	buffer.Write(certData.Certificate)
+	buffer.Write([]byte("\n"))
+
+	if certData.HasPrivateKey() {
+		buffer.Write(certData.PrivateKey)
+		buffer.Write([]byte("\n"))
+	}
+
+	return buffer.String()
+}
+
+func (cert *CertData) HasPrivateKey() bool {
+	return len(cert.PrivateKey) > 0
+}
+
+func (cert *CertData) HasCertificate() bool {
+	return len(cert.Certificate) > 0
+}
+
+func (cert *CertData) HasCaData() bool {
+	return len(cert.CaData) > 0
+}
+
 func ParsePrivate(data []byte) (any, error) {
 	if data == nil {
 		return nil, errors.New("emtpy data provided")
@@ -30,7 +68,6 @@ func ParsePrivate(data []byte) (any, error) {
 
 		cert, err := x509.ParsePKCS1PrivateKey(der.Bytes)
 		return cert, err
-
 	}
 }
 

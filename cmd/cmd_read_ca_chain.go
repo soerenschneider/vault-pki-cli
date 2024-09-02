@@ -2,9 +2,8 @@ package main
 
 import (
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -30,14 +29,20 @@ func fetchCaChainEntryPoint(_ *cobra.Command, _ []string) {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "could not build vault client")
 
-	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	pkiImpl, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
 	certData, err := pkiImpl.FetchCaChain()
 	DieOnErr(err, "can't fetch ca chain")
 
-	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
+	sink, err := storage.CaStorageFromConfig(config.StorageConfig)
 	DieOnErr(err, "could not build ca sink from config")
 
 	err = sink.WriteCa(certData)

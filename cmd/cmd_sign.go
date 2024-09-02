@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
+	"golang.org/x/net/context"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
 
 	log "github.com/rs/zerolog/log"
@@ -74,21 +75,39 @@ func signCert(config *conf.Config) error {
 	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth impl")
 
-	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = authStrategy.Login(ctx, vaultClient)
+	DieOnErr(err, "can't login to vault")
+
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	vaultBackend, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, &issue_strategies.StaticRenewal{Decision: false}, config)
+	pkiImpl, err := pki.NewPkiService(vaultBackend, &issue_strategies.StaticRenewal{Decision: false})
 	DieOnErr(err, "can't build pki impl")
 
-	sink, err := sink.CsrSinkFromConfig(config.StorageConfig)
+	sink, err := storage.CsrStorageFromConfig(config.StorageConfig)
 	DieOnErr(err, "can't build sink")
 
-	err = pkiImpl.Sign(sink, config)
+	args := pkg.SignatureArgs{
+		CommonName: config.CommonName,
+		Ttl:        config.Ttl,
+		IpSans:     config.IpSans,
+		AltNames:   config.AltNames,
+	}
+
+	err = pkiImpl.Sign(ctx, sink, args)
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404
 	if r.Intn(100) >= 90 {
 		log.Info().Msgf("Tidying up certificate storage")
-		err := pkiImpl.Tidy()
+		err := pkiImpl.Tidy(ctx)
 		if err != nil {
 			log.Error().Msgf("Tidying up certificate storage failed: %v", err)
 		}
