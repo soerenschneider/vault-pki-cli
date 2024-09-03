@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/hashicorp/vault/api/auth/approle"
@@ -12,6 +14,9 @@ import (
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"go.uber.org/multierr"
+	"golang.org/x/net/context"
 	"golang.org/x/term"
 )
 
@@ -71,9 +76,10 @@ func buildVaultClient(config *conf.Config) (*api.Client, error) {
 func buildAuthImpl(conf *conf.Config) (api.AuthMethod, error) {
 	switch conf.VaultAuthMethod {
 	case "kubernetes":
-		log.Info().Msg("Building 'kubernetes' vault auth...")
+		log.Debug().Msg("Building 'kubernetes' vault auth...")
 		return kubernetes.NewKubernetesAuth(conf.VaultAuthK8sRole)
 	case "approle":
+		log.Debug().Msg("Building 'approle' vault auth...")
 		secretId := &approle.SecretID{}
 		if len(conf.VaultSecretIdFile) > 0 {
 			secretId.FromFile = conf.VaultSecretIdFile
@@ -82,7 +88,7 @@ func buildAuthImpl(conf *conf.Config) (api.AuthMethod, error) {
 		}
 		return approle.NewAppRoleAuth(conf.VaultRoleId, secretId)
 	case "implicit":
-		log.Info().Msg("Building 'implicit' vault auth...")
+		log.Debug().Msg("Building 'implicit' vault auth...")
 		return vault.NewNoAuth(), nil
 	}
 
@@ -102,10 +108,30 @@ func setupLogLevel(debug bool) {
 }
 
 func initLogging() {
+	//#nosec:G115
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Logger = log.Output(zerolog.ConsoleWriter{
 			Out:        os.Stderr,
 			TimeFormat: "15:04:05",
 		})
 	}
+}
+
+func runPostIssueHooks(ctx context.Context, config *conf.Config) error {
+	if len(config.PostHooks) > 0 {
+		log.Info().Msg("Running post-issue hooks")
+	}
+
+	var err error
+	for _, hook := range config.PostHooks {
+		log.Info().Msgf("Running command '%s'", hook)
+		parsed := strings.Split(hook, " ")
+		cmd := exec.CommandContext(ctx, parsed[0], parsed[1:]...) //#nosec G204
+		cmdErr := cmd.Run()
+		if cmdErr != nil {
+			err = multierr.Append(err, fmt.Errorf("%w: cmd '%s' failed: %v", pkg.ErrRunHook, parsed[0], cmdErr))
+		}
+	}
+
+	return err
 }

@@ -48,7 +48,7 @@ type Config struct {
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
 	PostHooks                              []string `mapstructure:"post-hooks"`
-	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
+	CertificateLifetimeThresholdPercentage float32  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool
 }

@@ -1,4 +1,4 @@
-package issue_strategies
+package renew_strategy
 
 import "crypto/x509"
 

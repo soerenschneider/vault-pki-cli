@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
+	"github.com/soerenschneider/vault-pki-cli/pkg/renew_strategy"
 
 	log "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -89,7 +89,7 @@ func signCert(config *conf.Config) error {
 	vaultBackend, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPkiService(vaultBackend, &issue_strategies.StaticRenewal{Decision: false})
+	pkiImpl, err := pki.NewPkiService(vaultBackend, &renew_strategy.StaticRenewal{Decision: false})
 	DieOnErr(err, "can't build pki impl")
 
 	sink, err := storage.CsrStorageFromConfig(config.StorageConfig)

@@ -1,26 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/viper"
-	"go.uber.org/multierr"
 	"golang.org/x/net/context"
 
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
-	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
+	"github.com/soerenschneider/vault-pki-cli/pkg/renew_strategy"
 
 	log "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -74,6 +72,7 @@ func issueCertEntryPoint(_ *cobra.Command, _ []string) {
 
 	pkiImpl, sink := buildDependencies(config)
 	ctx, cancel := context.WithCancel(context.Background())
+	log.Info().Msg("Conditionally issuing cert")
 	err = issueCert(ctx, config, pkiImpl, sink)
 
 	interrupt := make(chan os.Signal, 1)
@@ -141,15 +140,23 @@ func issueCert(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiService
 		AltNames:   config.AltNames,
 	}
 
-	outcome, err := pkiImpl.Issue(ctx, sink, args)
+	result, err := pkiImpl.Issue(ctx, sink, args)
 	if err != nil {
+		labels := prometheus.Labels{
+			"cn":    "config.CommonName",
+			"error": internal.TranslateErrToPromLabel(err),
+		}
+		internal.MetricCertErrors.With(labels).Inc()
 		return err
 	}
 	internal.MetricSuccess.WithLabelValues(config.CommonName).Set(1)
 
-	if outcome == pki.Issued {
+	handleIssueLogs(result)
+	if result.Status == pkg.Issued {
+		commandCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
 		// overwrite outer 'err'
-		err = runPostIssueHooks(config)
+		err = runPostIssueHooks(commandCtx, config)
 
 		if !pkg.IsCertExpired(*cert) {
 			err := pkiImpl.Revoke(ctx, serial)
@@ -163,12 +170,27 @@ func issueCert(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiService
 	return err
 }
 
-func buildRenewalStrategy(config *conf.Config) (issue_strategies.IssueStrategy, error) {
+func handleIssueLogs(result pkg.IssueResult) {
+	if result.Status == pkg.Issued {
+		if result.ExistingCert != nil {
+			percentage := fmt.Sprintf("%.1f", renew_strategy.GetPercentage(*result.ExistingCert))
+			log.Info().Msgf("Existing certificate at %s%% expired or below threshold, valid from %v until %v", percentage, result.ExistingCert.NotBefore.Format(time.RFC3339), result.ExistingCert.NotAfter.Format(time.RFC3339))
+		}
+		log.Info().Msgf("New certificate valid until %v (%s)", result.IssuedCert.NotAfter.Format(time.RFC3339), time.Until(result.IssuedCert.NotAfter).Round(time.Second))
+		internal.UpdateCertificateMetrics(result.IssuedCert)
+	} else if result.Status == pkg.Noop {
+		percentage := fmt.Sprintf("%.1f", renew_strategy.GetPercentage(*result.ExistingCert))
+		log.Info().Msgf("Existing certificate at %s%%, valid until %v (%s)", percentage, result.ExistingCert.NotAfter.Format(time.RFC3339), time.Until(result.ExistingCert.NotAfter).Round(time.Second))
+		internal.UpdateCertificateMetrics(result.ExistingCert)
+	}
+}
+
+func buildRenewalStrategy(config *conf.Config) (pki.RenewStrategy, error) {
 	if config.ForceNewCertificate {
-		return &issue_strategies.StaticRenewal{Decision: true}, nil
+		return &renew_strategy.StaticRenewal{Decision: true}, nil
 	}
 
-	return issue_strategies.NewPercentage(config.CertificateLifetimeThresholdPercentage)
+	return renew_strategy.NewPercentage(config.CertificateLifetimeThresholdPercentage)
 }
 
 func buildDependencies(config *conf.Config) (*pki.PkiService, pki.IssueStorage) {
@@ -209,25 +231,11 @@ func buildDependencies(config *conf.Config) (*pki.PkiService, pki.IssueStorage) 
 func tidyStorage(ctx context.Context, pkiImpl *pki.PkiService) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano())) // #nosec G404
 	if r.Intn(100) >= 90 {
-		log.Info().Msgf("Tidying up certificate storage")
 		err := pkiImpl.Tidy(ctx)
 		if err != nil {
-			log.Error().Msgf("Tidying up certificate storage failed: %v", err)
+			log.Warn().Err(err).Msg("Tidying up certificate storage failed")
+		} else {
+			log.Info().Msgf("Certificate storage tidyed up")
 		}
 	}
-}
-
-func runPostIssueHooks(config *conf.Config) error {
-	var err error
-	for _, hook := range config.PostHooks {
-		log.Info().Msgf("Running command '%s'", hook)
-		parsed := strings.Split(hook, " ")
-		cmd := exec.Command(parsed[0], parsed[1:]...) // #nosec G204
-		cmdErr := cmd.Run()
-		if cmdErr != nil {
-			err = multierr.Append(err, errors.Errorf("error running command '%s': %v", parsed[0], cmdErr))
-		}
-	}
-
-	return err
 }

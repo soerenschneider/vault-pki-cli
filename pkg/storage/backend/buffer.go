@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 )
 
 type BufferPod struct {
@@ -12,7 +12,7 @@ func (b *BufferPod) Read() ([]byte, error) {
 	if len(b.Data) > 0 {
 		return b.Data, nil
 	}
-	return nil, pki.ErrNoCertFound
+	return nil, pkg.ErrNoCertFound
 }
 
 func (b *BufferPod) CanRead() error {
@@ -20,7 +20,7 @@ func (b *BufferPod) CanRead() error {
 		return nil
 	}
 
-	return pki.ErrNoCertFound
+	return pkg.ErrNoCertFound
 }
 
 func (b *BufferPod) Write(data []byte) error {
