@@ -10,9 +10,9 @@ func Test_dumpMetrics(t *testing.T) {
 	}{
 		{
 			name: "happy path",
-			want: `# HELP vault_pki_cli_success_bool Whether the tool ran successful
+			want: `# HELP vault_pki_cli_success_bool Boolean that reflects whether the tool ran successful
 # TYPE vault_pki_cli_success_bool gauge
-vault_pki_cli_success_bool{domain="domain"} 1
+vault_pki_cli_success_bool{cn="domain"} 1
 `,
 			wantErr: false,
 		},
