@@ -1,15 +1,19 @@
 package main
 
 import (
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/net/context"
 )
 
 func getReadAcmeCmd() *cobra.Command {
@@ -69,23 +73,48 @@ func readAcmeCert(config *conf.Config) error {
 	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth")
 
-	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = authStrategy.Login(ctx, vaultClient)
+	DieOnErr(err, "can't login to vault")
+
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	vaultBackend, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "can't build vault pki")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, nil, config)
+	pkiImpl, err := pki.NewPkiService(vaultBackend, nil)
 	DieOnErr(err, "can't build pki impl")
 
-	sink, err := sink.MultiKeyPairSinkFromConfig(config)
+	sink, err := storage.MultiKeyPairStorageFromConfig(config)
 	DieOnErr(err, "can't build sink")
 
-	changed, err := pkiImpl.ReadAcme(sink, config)
-	DieOnErr(err, "can't read acme cert")
+	result, err := pkiImpl.ReadAcme(ctx, sink, config.CommonName)
+	if err != nil {
+		labels := prometheus.Labels{
+			"cn":  "config.CommonName",
+			"err": internal.TranslateErrToPromLabel(err),
+		}
+		internal.MetricCertErrors.With(labels).Inc()
+		DieOnErr(err, "can't read acme cert")
+	}
 
-	if !changed {
-		log.Info().Msg("No update detected, local certificate and remote cert identical")
+	switch result.Status {
+	case pkg.Issued:
+		internal.UpdateCertificateMetrics(result.IssuedCert)
+		log.Info().Msg("Detected update between local cert on disk and the read certificate")
+		commandCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runPostIssueHooks(commandCtx, config)
+	case pkg.Noop:
+		log.Info().Msg("No update detected for certificate")
+		internal.UpdateCertificateMetrics(result.ExistingCert)
 		return nil
 	}
 
-	log.Info().Msg("Detected update between local cert on disk and the read certificate")
-	return runPostIssueHooks(config)
+	return nil
 }

@@ -26,7 +26,7 @@ func TestConfig_Validate(t *testing.T) {
 		ForceNewCertificate                    bool
 		StorageConfig                          []map[string]string
 		PostHooks                              []string
-		CertificateLifetimeThresholdPercentage float64
+		CertificateLifetimeThresholdPercentage float32
 		DerEncoded                             bool
 	}
 	tests := []struct {

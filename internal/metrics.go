@@ -2,7 +2,9 @@ package internal
 
 import (
 	"bytes"
+	"crypto/x509"
 	"errors"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 	"github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 )
 
 const (
@@ -23,38 +26,38 @@ var (
 	MetricSuccess = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
 		Name:      "success_bool",
-		Help:      "Whether the tool ran successful",
-	}, []string{"domain"})
+		Help:      "Boolean that reflects whether the tool ran successful",
+	}, []string{"cn"})
 
 	MetricCertExpiry = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
 		Name:      "cert_expiry_seconds",
 		Help:      "The date after the cert is not valid anymore",
-	}, []string{"domain"})
+	}, []string{"cn"})
 
 	MetricCertLifetimeTotal = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
 		Name:      "cert_lifetime_seconds_total",
 		Help:      "The total number of seconds this certificate is valid",
-	}, []string{"domain"})
+	}, []string{"cn"})
 
-	MetricCertParseErrors = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	MetricCertErrors = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
-		Name:      "cert_parse_errors_total",
-		Help:      "The total number of parsing errors of a cert",
-	}, []string{"domain"})
+		Name:      "cert_errors_total",
+		Help:      "The total number of errors while handling a cert",
+	}, []string{"cn", "error"})
 
 	MetricCertLifetimePercent = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
 		Name:      "cert_lifetime_percent",
 		Help:      "The passed lifetime of the certificate in percent",
-	}, []string{"domain"})
+	}, []string{"cn"})
 
 	MetricRunTimestamp = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,
 		Name:      "run_timestamp_seconds",
 		Help:      "The date after the cert is not valid anymore",
-	}, []string{"domain"})
+	}, []string{"cn"})
 )
 
 func WriteMetrics(path string) error {
@@ -85,6 +88,38 @@ func StartMetricsServer(addr string) error {
 	}
 
 	return nil
+}
+
+func UpdateCertificateMetrics(cert *x509.Certificate) {
+	if cert == nil {
+		log.Warn().Msg("can not update cert metrics, nil cert passed")
+		return
+	}
+
+	secondsTotal := cert.NotAfter.Sub(cert.NotBefore).Seconds()
+	MetricCertLifetimeTotal.WithLabelValues(cert.Subject.CommonName).Set(secondsTotal)
+	secondsUntilExpiration := time.Until(cert.NotAfter).Seconds()
+
+	percentage := math.Max(0, secondsUntilExpiration*100./secondsTotal)
+
+	MetricCertExpiry.WithLabelValues(cert.Subject.CommonName).Set(float64(cert.NotAfter.UnixMilli()))
+	MetricCertLifetimePercent.WithLabelValues(cert.Subject.CommonName).Set(percentage)
+}
+
+func TranslateErrToPromLabel(err error) string {
+	if errors.Is(err, pkg.ErrWriteCert) {
+		return "write_issued_cert"
+	}
+	if errors.Is(err, pkg.ErrNoCertFound) {
+		return "no_cert_found"
+	}
+	if errors.Is(err, pkg.ErrIssueCert) {
+		return "issue_error"
+	}
+	if errors.Is(err, pkg.ErrCertInvalidData) {
+		return "issued_cert_invalid_data"
+	}
+	return "unknown"
 }
 
 func dumpMetrics() (string, error) {

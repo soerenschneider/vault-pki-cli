@@ -12,13 +12,16 @@ import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog/log"
-	"github.com/soerenschneider/vault-pki-cli/internal"
-	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"go.uber.org/multierr"
 	"golang.org/x/net/context"
 )
 
 const (
+	defaultMountPki   = "pki"
+	defaultMountKv2   = "kv2"
+	defaultAcmePrefix = "acme"
+
 	// keys of the kv2 secret's map for the respective data
 	acmevaultKeyPrivateKey  = "private_key"
 	acmevaultKeyCertificate = "cert"
@@ -31,52 +34,52 @@ const (
 	acmevaultKv2SecretNamePrivatekey = "privatekey"
 )
 
-type AuthMethod interface {
-	Login(ctx context.Context, client *api.Client) (*api.Secret, error)
-	Cleanup(ctx context.Context, client *api.Client) error
+type VaultClient interface {
+	ReadWithContext(ctx context.Context, path string) (*api.Secret, error)
+	WriteWithContext(ctx context.Context, path string, data map[string]any) (*api.Secret, error)
+	ReadRawWithContext(ctx context.Context, path string) (*api.Response, error)
 }
 
-type VaultClient struct {
-	client    *api.Client
-	auth      AuthMethod
-	roleName  string
-	mountPath string
-	config    *conf.Config
+type VaultPki struct {
+	client       VaultClient
+	roleName     string
+	pkiMountPath string
+	kv2MountPath string
+	acmePrefix   string
 }
 
-func NewVaultPki(client *api.Client, auth AuthMethod, config *conf.Config) (*VaultClient, error) {
+type VaultOpts func(client *VaultPki) error
+
+func NewVaultPki(client VaultClient, roleName string, opts ...VaultOpts) (*VaultPki, error) {
 	if client == nil {
 		return nil, errors.New("nil client passed")
 	}
 
-	if auth == nil {
-		return nil, errors.New("nil auth passed")
+	ret := &VaultPki{
+		client:       client,
+		roleName:     roleName,
+		pkiMountPath: defaultMountPki,
+		kv2MountPath: defaultMountKv2,
+		acmePrefix:   defaultAcmePrefix,
 	}
 
-	if config == nil {
-		return nil, errors.New("nil config passed")
+	var errs error
+	for _, opt := range opts {
+		if err := opt(ret); err != nil {
+			errs = multierr.Append(errs, err)
+		}
 	}
 
-	return &VaultClient{
-		client:    client,
-		auth:      auth,
-		mountPath: config.VaultMountPki,
-		roleName:  config.VaultPkiRole,
-		config:    config,
-	}, nil
+	return ret, errs
 }
 
-func (c *VaultClient) Revoke(serial string) error {
-	if err := c.login(); err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("%s/revoke", c.mountPath)
+func (c *VaultPki) Revoke(ctx context.Context, serial string) error {
+	path := fmt.Sprintf("%s/revoke", c.pkiMountPath)
 	data := map[string]interface{}{
 		"serial_number": serial,
 	}
 
-	resp, err := c.client.Logical().Write(path, data)
+	resp, err := c.client.WriteWithContext(ctx, path, data)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
@@ -92,15 +95,11 @@ func (c *VaultClient) Revoke(serial string) error {
 	return nil
 }
 
-func (c *VaultClient) issue(opts *conf.Config) (*api.Secret, error) {
-	if err := c.login(); err != nil {
-		return nil, err
-	}
+func (c *VaultPki) issue(ctx context.Context, args pkg.IssueArgs) (*api.Secret, error) {
+	path := fmt.Sprintf("%s/issue/%s", c.pkiMountPath, c.roleName)
+	data := buildIssueRequestArgs(args)
 
-	path := fmt.Sprintf("%s/issue/%s", c.mountPath, c.roleName)
-	data := buildIssueArgs(opts)
-
-	secret, err := c.client.Logical().Write(path, data)
+	secret, err := c.client.WriteWithContext(ctx, path, data)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
@@ -113,27 +112,23 @@ func (c *VaultClient) issue(opts *conf.Config) (*api.Secret, error) {
 	return secret, nil
 }
 
-func buildIssueArgs(opts *conf.Config) map[string]any {
+func buildIssueRequestArgs(args pkg.IssueArgs) map[string]any {
 	data := map[string]any{
-		"common_name": opts.CommonName,
-		"ttl":         opts.Ttl,
+		"common_name": args.CommonName,
+		"ttl":         args.Ttl,
 		"format":      "pem",
-		"ip_sans":     strings.Join(opts.IpSans, ","),
-		"alt_names":   strings.Join(opts.AltNames, ","),
+		"ip_sans":     strings.Join(args.IpSans, ","),
+		"alt_names":   strings.Join(args.AltNames, ","),
 	}
 
 	return data
 }
 
-func (c *VaultClient) sign(csr string, opts *conf.Config) (*api.Secret, error) {
-	if err := c.login(); err != nil {
-		return nil, err
-	}
+func (c *VaultPki) sign(ctx context.Context, csr string, args pkg.SignatureArgs) (*api.Secret, error) {
+	path := fmt.Sprintf("%s/sign/%s", c.pkiMountPath, c.roleName)
+	data := buildSignArgs(csr, args)
 
-	path := fmt.Sprintf("%s/sign/%s", c.mountPath, c.roleName)
-	data := buildSignArgs(csr, opts)
-
-	secret, err := c.client.Logical().Write(path, data)
+	secret, err := c.client.WriteWithContext(ctx, path, data)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
@@ -145,26 +140,26 @@ func (c *VaultClient) sign(csr string, opts *conf.Config) (*api.Secret, error) {
 	return secret, nil
 }
 
-func buildSignArgs(csr string, opts *conf.Config) map[string]interface{} {
+func buildSignArgs(csr string, args pkg.SignatureArgs) map[string]interface{} {
 	data := map[string]interface{}{
 		"csr":         csr,
-		"common_name": opts.CommonName,
-		"ttl":         opts.Ttl,
+		"common_name": args.CommonName,
+		"ttl":         args.Ttl,
 		"format":      "pem",
-		"ip_sans":     strings.Join(opts.IpSans, ","),
-		"alt_names":   strings.Join(opts.AltNames, ","),
+		"ip_sans":     strings.Join(args.IpSans, ","),
+		"alt_names":   strings.Join(args.AltNames, ","),
 	}
 
 	return data
 }
 
-func (c *VaultClient) getAcmevaultDataPath(domain string, leaf string) string {
-	prefix := fmt.Sprintf("%s/data/%s", c.config.VaultMountKv2, c.config.AcmePrefix)
+func (c *VaultPki) getAcmevaultDataPath(domain string, leaf string) string {
+	prefix := fmt.Sprintf("%s/data/%s", c.kv2MountPath, c.acmePrefix)
 	return fmt.Sprintf("%s/client/%s/%s", prefix, domain, leaf)
 }
 
-func (c *VaultClient) readKv2Secret(path string) (map[string]interface{}, error) {
-	secret, err := c.client.Logical().Read(path)
+func (c *VaultPki) readKv2Secret(ctx context.Context, path string) (map[string]interface{}, error) {
+	secret, err := c.client.ReadWithContext(ctx, path)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
@@ -179,33 +174,29 @@ func (c *VaultClient) readKv2Secret(path string) (map[string]interface{}, error)
 	var data map[string]interface{}
 	_, ok := secret.Data["data"]
 	if !ok {
-		internal.MetricCertParseErrors.WithLabelValues(c.config.CommonName).Inc()
 		return nil, backoff.Permanent(errors.New("read kv2 secret contains no data"))
 	}
 	data, ok = secret.Data["data"].(map[string]interface{})
 	if !ok {
-		internal.MetricCertParseErrors.WithLabelValues(c.config.CommonName).Inc()
 		return nil, backoff.Permanent(errors.New("read kv2 data is malformed"))
 	}
 
 	return data, nil
 }
 
-func (c *VaultClient) readAcmeCert(commonName string) (*pki.CertData, error) {
+func (c *VaultPki) readAcmeCert(ctx context.Context, commonName string) (*pkg.CertData, error) {
 	path := c.getAcmevaultDataPath(commonName, acmevaultKv2SecretNameCertificate)
-	data, err := c.readKv2Secret(path)
+	data, err := c.readKv2Secret(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
 	rawCert, ok := data[acmevaultKeyCertificate]
 	if !ok {
-		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, backoff.Permanent(errors.New("read kv2 secret does not contain certificate data"))
 	}
 	cert, err := base64.StdEncoding.DecodeString(rawCert.(string))
 	if err != nil {
-		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, backoff.Permanent(errors.New("could not base64 decode cert"))
 	}
 	cert = bytes.TrimRight(cert, "\n")
@@ -239,84 +230,56 @@ func (c *VaultClient) readAcmeCert(commonName string) (*pki.CertData, error) {
 		}
 	}
 
-	return &pki.CertData{Certificate: cert, CaData: issuer}, nil
+	return &pkg.CertData{Certificate: cert, CaData: issuer}, nil
 }
 
-func (c *VaultClient) readAcmeSecret(commonName string) (*pki.CertData, error) {
+func (c *VaultPki) readAcmeSecret(ctx context.Context, commonName string) (*pkg.CertData, error) {
 	path := c.getAcmevaultDataPath(commonName, acmevaultKv2SecretNamePrivatekey)
-	data, err := c.readKv2Secret(path)
+	data, err := c.readKv2Secret(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
 	rawKey, ok := data[acmevaultKeyPrivateKey]
 	if !ok {
-		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, backoff.Permanent(errors.New("read kv2 secret does not contain private key data"))
 	}
 
 	privateKey, err := base64.StdEncoding.DecodeString(rawKey.(string))
 	if err != nil {
-		internal.MetricCertParseErrors.WithLabelValues(commonName).Inc()
 		return nil, backoff.Permanent(errors.New("could not base64 decode key"))
 	}
 
 	privateKey = bytes.TrimRight(privateKey, "\n")
-	return &pki.CertData{PrivateKey: privateKey}, nil
+	return &pkg.CertData{PrivateKey: privateKey}, nil
 }
 
-func (c *VaultClient) login() error {
-	_, err := c.client.Auth().Login(context.Background(), c.auth)
-	if err != nil {
-		var respErr *api.ResponseError
-		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
-			return backoff.Permanent(err)
-		}
-		return fmt.Errorf("could not authenticate: %v", err)
-	}
-
-	return nil
-}
-
-func (c *VaultClient) ReadAcme(commonName string, conf *conf.Config) (*pki.CertData, error) {
-	if conf == nil {
-		return nil, backoff.Permanent(errors.New("nil config provided"))
-	}
-
-	if err := c.login(); err != nil {
-		return nil, err
-	}
-
-	certData, err := c.readAcmeCert(commonName)
+func (c *VaultPki) ReadAcme(ctx context.Context, commonName string) (*pkg.CertData, error) {
+	certData, err := c.readAcmeCert(ctx, commonName)
 	if err != nil {
 		return nil, fmt.Errorf("could not read certificate data: %w", err)
 	}
 
-	secretData, err := c.readAcmeSecret(commonName)
+	secretData, err := c.readAcmeSecret(ctx, commonName)
 	if err != nil {
 		return nil, fmt.Errorf("could not read secret data: %w", err)
 	}
 
-	return &pki.CertData{
+	return &pkg.CertData{
 		PrivateKey:  secretData.PrivateKey,
 		Certificate: certData.Certificate,
 		CaData:      certData.CaData,
 	}, nil
 }
 
-func (c *VaultClient) Tidy() error {
-	if err := c.login(); err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("%s/tidy", c.mountPath)
-
+func (c *VaultPki) Tidy(ctx context.Context) error {
+	path := fmt.Sprintf("%s/tidy", c.pkiMountPath)
 	data := map[string]interface{}{
 		"tidy_cert_store":    true,
 		"tidy_revoked_certs": true,
 		"safety_buffer":      "90m",
 	}
-	_, err := c.client.Logical().Write(path, data)
+	_, err := c.client.WriteWithContext(ctx, path, data)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {
@@ -329,12 +292,8 @@ func (c *VaultClient) Tidy() error {
 	return nil
 }
 
-func (c *VaultClient) Sign(csr string, opts *conf.Config) (*pki.Signature, error) {
-	if opts == nil {
-		return nil, errors.New("empty config provided")
-	}
-
-	secret, err := c.sign(csr, opts)
+func (c *VaultPki) Sign(ctx context.Context, csr string, args pkg.SignatureArgs) (*pkg.Signature, error) {
+	secret, err := c.sign(ctx, csr, args)
 	if err != nil {
 		return nil, err
 	}
@@ -343,19 +302,15 @@ func (c *VaultClient) Sign(csr string, opts *conf.Config) (*pki.Signature, error
 	chain := fmt.Sprintf("%s", secret.Data["issuing_ca"])
 	serial := fmt.Sprintf("%s", secret.Data["serial_number"])
 
-	return &pki.Signature{
+	return &pkg.Signature{
 		Certificate: []byte(cert),
 		CaData:      []byte(chain),
 		Serial:      serial,
 	}, nil
 }
 
-func (c *VaultClient) Issue(opts *conf.Config) (*pki.CertData, error) {
-	if opts == nil {
-		return nil, errors.New("empty config provided")
-	}
-
-	secret, err := c.issue(opts)
+func (c *VaultPki) Issue(ctx context.Context, args pkg.IssueArgs) (*pkg.CertData, error) {
+	secret, err := c.issue(ctx, args)
 	if err != nil {
 		return nil, err
 	}
@@ -364,19 +319,15 @@ func (c *VaultClient) Issue(opts *conf.Config) (*pki.CertData, error) {
 	cert := fmt.Sprintf("%s", secret.Data["certificate"])
 	chain := fmt.Sprintf("%s", secret.Data["issuing_ca"])
 
-	return &pki.CertData{
+	return &pkg.CertData{
 		PrivateKey:  []byte(privateKey),
 		Certificate: []byte(cert),
 		CaData:      []byte(chain),
 	}, nil
 }
 
-func (c *VaultClient) Cleanup() error {
-	return c.auth.Cleanup(context.Background(), c.client)
-}
-
-func (c *VaultClient) FetchCa(binary bool) ([]byte, error) {
-	path := fmt.Sprintf("%s/ca", c.mountPath)
+func (c *VaultPki) FetchCa(binary bool) ([]byte, error) {
+	path := fmt.Sprintf("%s/ca", c.pkiMountPath)
 	if !binary {
 		path = path + "/pem"
 	}
@@ -384,13 +335,13 @@ func (c *VaultClient) FetchCa(binary bool) ([]byte, error) {
 	return c.readRaw(path)
 }
 
-func (c *VaultClient) FetchCaChain() ([]byte, error) {
-	path := fmt.Sprintf("/%s/ca_chain", c.mountPath)
+func (c *VaultPki) FetchCaChain() ([]byte, error) {
+	path := fmt.Sprintf("/%s/ca_chain", c.pkiMountPath)
 	return c.readRaw(path)
 }
 
-func (c *VaultClient) FetchCrl(binary bool) ([]byte, error) {
-	path := fmt.Sprintf("%s/crl", c.mountPath)
+func (c *VaultPki) FetchCrl(binary bool) ([]byte, error) {
+	path := fmt.Sprintf("%s/crl", c.pkiMountPath)
 	if !binary {
 		path += "/pem"
 	}
@@ -398,11 +349,11 @@ func (c *VaultClient) FetchCrl(binary bool) ([]byte, error) {
 	return c.readRaw(path)
 }
 
-func (c *VaultClient) readRaw(path string) ([]byte, error) {
+func (c *VaultPki) readRaw(path string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	secret, err := c.client.Logical().ReadRawWithContext(ctx, path)
+	secret, err := c.client.ReadRawWithContext(ctx, path)
 	if err != nil {
 		var respErr *api.ResponseError
 		if errors.As(err, &respErr) && !shouldRetry(respErr.StatusCode) {

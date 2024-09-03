@@ -1,4 +1,4 @@
-package storage
+package backend
 
 import (
 	"reflect"
@@ -14,13 +14,13 @@ func TestFsPod_Read(t *testing.T) {
 	}{
 		{
 			name:     "read hello file",
-			filePath: "../../assets/tests/hello.txt",
+			filePath: "../../../assets/tests/hello.txt",
 			want:     []byte("hello"),
 			wantErr:  false,
 		},
 		{
 			name:     "read non-existent file",
-			filePath: "../../assets/tests/hello-im-not-here.txt",
+			filePath: "../../../assets/tests/hello-im-not-here.txt",
 			want:     nil,
 			wantErr:  true,
 		},
@@ -50,12 +50,12 @@ func TestFsPod_CanRead(t *testing.T) {
 	}{
 		{
 			name:     "read hello file",
-			filePath: "../../assets/tests/hello.txt",
+			filePath: "../../../assets/tests/hello.txt",
 			wantErr:  false,
 		},
 		{
 			name:     "read unexistent file",
-			filePath: "../../assets/tests/hello-im-not-here.txt",
+			filePath: "../../../assets/tests/hello-im-not-here.txt",
 			wantErr:  true,
 		},
 	}

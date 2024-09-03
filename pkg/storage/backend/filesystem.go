@@ -1,17 +1,17 @@
-package storage
+package backend
 
 import (
 	"errors"
 	"fmt"
-
-	"github.com/rs/zerolog/log"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
 
 	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 
 	"golang.org/x/sys/unix"
 )
@@ -65,7 +65,7 @@ func NewFilesystemStorageFromUri(uri string) (*FilesystemStorage, error) {
 				return nil, fmt.Errorf("could not parse value for 'chmod' param: %v", val)
 			}
 
-			mode = os.FileMode(parsed)
+			mode = os.FileMode(parsed) //#nosec:G115
 			if err != nil {
 				return nil, fmt.Errorf("invalid file mode supplied: %v", val[0])
 			}
@@ -136,7 +136,7 @@ func (fs *FilesystemStorage) Read() ([]byte, error) {
 	data, err := os.ReadFile(fs.FilePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, pki.ErrNoCertFound
+			return nil, pkg.ErrNoCertFound
 		}
 		return nil, err
 	}

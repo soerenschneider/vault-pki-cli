@@ -36,7 +36,6 @@ func main() {
 				if err != nil {
 					errs = append(errs, err)
 				}
-				log.Info().Msgf("%s=%v", flag.Name, flag.Value)
 
 			})
 			if len(errs) > 0 {
@@ -107,7 +106,6 @@ func config() (*conf.Config, error) {
 
 	if viper.IsSet(conf.FLAG_CONFIG_FILE) {
 		configFile := expandPath(viper.GetString(conf.FLAG_CONFIG_FILE))
-		log.Info().Msgf("Trying to read config from '%s'", configFile)
 		viper.SetConfigFile(configFile)
 	}
 

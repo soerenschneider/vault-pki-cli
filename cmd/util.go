@@ -3,13 +3,20 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/auth/approle"
+	"github.com/hashicorp/vault/api/auth/kubernetes"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"go.uber.org/multierr"
+	"golang.org/x/net/context"
 	"golang.org/x/term"
 )
 
@@ -66,25 +73,23 @@ func buildVaultClient(config *conf.Config) (*api.Client, error) {
 	return vaultClient, nil
 }
 
-func buildAuthImpl(conf *conf.Config) (vault.AuthMethod, error) {
+func buildAuthImpl(conf *conf.Config) (api.AuthMethod, error) {
 	switch conf.VaultAuthMethod {
-	case "token":
-		log.Info().Msg("Building 'token' vault auth...")
-		return vault.NewTokenAuth(conf.VaultToken)
 	case "kubernetes":
-		log.Info().Msg("Building 'kubernetes' vault auth...")
-		return vault.NewVaultKubernetesAuth(conf.VaultAuthK8sRole)
+		log.Debug().Msg("Building 'kubernetes' vault auth...")
+		return kubernetes.NewKubernetesAuth(conf.VaultAuthK8sRole)
 	case "approle":
-		approleData := make(map[string]string)
-		approleData[vault.KeyRoleId] = conf.VaultRoleId
-		approleData[vault.KeySecretId] = conf.VaultSecretId
-		approleData[vault.KeySecretIdFile] = conf.VaultSecretIdFile
-
-		log.Info().Msg("Building 'approle' vault auth...")
-		return vault.NewAppRoleAuth(approleData, conf.VaultMountApprole)
+		log.Debug().Msg("Building 'approle' vault auth...")
+		secretId := &approle.SecretID{}
+		if len(conf.VaultSecretIdFile) > 0 {
+			secretId.FromFile = conf.VaultSecretIdFile
+		} else {
+			secretId.FromString = conf.VaultSecretId
+		}
+		return approle.NewAppRoleAuth(conf.VaultRoleId, secretId)
 	case "implicit":
-		log.Info().Msg("Building 'implicit' vault auth...")
-		return vault.NewTokenImplicitAuth(), nil
+		log.Debug().Msg("Building 'implicit' vault auth...")
+		return vault.NewNoAuth(), nil
 	}
 
 	return nil, fmt.Errorf("unknown auth strategy '%s'", conf.VaultAuthMethod)
@@ -103,10 +108,30 @@ func setupLogLevel(debug bool) {
 }
 
 func initLogging() {
+	//#nosec:G115
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		log.Logger = log.Output(zerolog.ConsoleWriter{
 			Out:        os.Stderr,
 			TimeFormat: "15:04:05",
 		})
 	}
+}
+
+func runPostIssueHooks(ctx context.Context, config *conf.Config) error {
+	if len(config.PostHooks) > 0 {
+		log.Info().Msg("Running post-issue hooks")
+	}
+
+	var err error
+	for _, hook := range config.PostHooks {
+		log.Info().Msgf("Running command '%s'", hook)
+		parsed := strings.Split(hook, " ")
+		cmd := exec.CommandContext(ctx, parsed[0], parsed[1:]...) //#nosec G204
+		cmdErr := cmd.Run()
+		if cmdErr != nil {
+			err = multierr.Append(err, fmt.Errorf("%w: cmd '%s' failed: %v", pkg.ErrRunHook, parsed[0], cmdErr))
+		}
+	}
+
+	return err
 }

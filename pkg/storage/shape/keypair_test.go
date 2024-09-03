@@ -1,12 +1,13 @@
-package sink
+package shape
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/storage"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/storage/backend"
 )
 
 const (
@@ -24,13 +25,13 @@ func TestKeyPairSink_WriteCert(t *testing.T) {
 	tests := []struct {
 		name     string
 		fields   fields
-		certData *pki.CertData
+		certData *pkg.CertData
 		wantErr  bool
 		wantData string
 	}{
 		{
 			name: "write ca, cert and key to single file",
-			certData: &pki.CertData{
+			certData: &pkg.CertData{
 				PrivateKey:  []byte(privKey),
 				Certificate: []byte(cert),
 				CaData:      []byte(ca),
@@ -39,14 +40,14 @@ func TestKeyPairSink_WriteCert(t *testing.T) {
 			fields: fields{
 				ca:         nil,
 				cert:       nil,
-				privateKey: &storage.BufferPod{},
+				privateKey: &backend.BufferPod{},
 			},
 			wantErr:  false,
 			wantData: fmt.Sprintf("%s\n%s\n%s\n", cert, ca, privKey),
 		},
 		{
 			name: "write cert and key to single file",
-			certData: &pki.CertData{
+			certData: &pkg.CertData{
 				PrivateKey:  []byte(privKey),
 				Certificate: []byte(cert),
 				CaData:      nil,
@@ -55,7 +56,7 @@ func TestKeyPairSink_WriteCert(t *testing.T) {
 			fields: fields{
 				ca:         nil,
 				cert:       nil,
-				privateKey: &storage.BufferPod{},
+				privateKey: &backend.BufferPod{},
 			},
 			wantErr:  false,
 			wantData: fmt.Sprintf("%s\n%s\n", cert, privKey),
@@ -63,7 +64,7 @@ func TestKeyPairSink_WriteCert(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &KeyPairSink{
+			f := &KeyPairStorage{
 				ca:         tt.fields.ca,
 				cert:       tt.fields.cert,
 				privateKey: tt.fields.privateKey,
@@ -90,7 +91,7 @@ func TestKeyPairSink_writeToIndividualSlots(t *testing.T) {
 		privateKey pki.StorageImplementation
 	}
 	type args struct {
-		certData *pki.CertData
+		certData *pkg.CertData
 	}
 	tests := []struct {
 		name           string
@@ -104,10 +105,10 @@ func TestKeyPairSink_writeToIndividualSlots(t *testing.T) {
 		{
 			name: "no newlines",
 			fields: fields{
-				cert:       &storage.BufferPod{},
-				privateKey: &storage.BufferPod{},
+				cert:       &backend.BufferPod{},
+				privateKey: &backend.BufferPod{},
 			},
-			args: args{certData: &pki.CertData{
+			args: args{certData: &pkg.CertData{
 				PrivateKey:  []byte("-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAnVHfwoKsUG1GDVyWB1AFroaKl2ImMBO8EnvGLRrmobIkQvh+\n...\nQN351pgTphi6nlCkGPzkDuwvtxSxiCWXQcaxrHAL7MiJpPzkIBq1\n-----END RSA PRIVATE KEY-----\n"),
 				Certificate: []byte("-----BEGIN CERTIFICATE-----\nMIIDzDCCAragAwIBAgIUOd0ukLcjH43TfTHFG9qE0FtlMVgwCwYJKoZIhvcNAQEL\n...\numkqeYeO30g1uYvDuWLXVA==\n-----END CERTIFICATE-----\n"),
 				CaData:      []byte("-----BEGIN CERTIFICATE-----\nMIIDUTCCAjmgAwIBAgIJAKM+z4MSfw2mMA0GCSqGSIb3DQEBCwUAMBsxGTAXBgNV\n...\nG/7g4koczXLoUM3OQXd5Aq2cs4SS1vODrYmgbioFsQ3eDHd1fg==\n-----END CERTIFICATE-----\n"),
@@ -136,7 +137,7 @@ G/7g4koczXLoUM3OQXd5Aq2cs4SS1vODrYmgbioFsQ3eDHd1fg==
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &KeyPairSink{
+			f := &KeyPairStorage{
 				ca:         tt.fields.ca,
 				cert:       tt.fields.cert,
 				privateKey: tt.fields.privateKey,
@@ -176,7 +177,7 @@ func TestKeyPairSink_writeToPrivateSlot(t *testing.T) {
 		privateKey pki.StorageImplementation
 	}
 	type args struct {
-		certData *pki.CertData
+		certData *pkg.CertData
 	}
 	tests := []struct {
 		name           string
@@ -190,9 +191,9 @@ func TestKeyPairSink_writeToPrivateSlot(t *testing.T) {
 		{
 			name: "no newlines",
 			fields: fields{
-				privateKey: &storage.BufferPod{},
+				privateKey: &backend.BufferPod{},
 			},
-			args: args{certData: &pki.CertData{
+			args: args{certData: &pkg.CertData{
 				PrivateKey:  []byte("-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAnVHfwoKsUG1GDVyWB1AFroaKl2ImMBO8EnvGLRrmobIkQvh+\n...\nQN351pgTphi6nlCkGPzkDuwvtxSxiCWXQcaxrHAL7MiJpPzkIBq1\n-----END RSA PRIVATE KEY-----\n"),
 				Certificate: []byte("-----BEGIN CERTIFICATE-----\nMIIDzDCCAragAwIBAgIUOd0ukLcjH43TfTHFG9qE0FtlMVgwCwYJKoZIhvcNAQEL\n...\numkqeYeO30g1uYvDuWLXVA==\n-----END CERTIFICATE-----\n"),
 				CaData:      []byte("-----BEGIN CERTIFICATE-----\nMIIDUTCCAjmgAwIBAgIJAKM+z4MSfw2mMA0GCSqGSIb3DQEBCwUAMBsxGTAXBgNV\n...\nG/7g4koczXLoUM3OQXd5Aq2cs4SS1vODrYmgbioFsQ3eDHd1fg==\n-----END CERTIFICATE-----\n"),
@@ -221,7 +222,7 @@ QN351pgTphi6nlCkGPzkDuwvtxSxiCWXQcaxrHAL7MiJpPzkIBq1
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &KeyPairSink{
+			f := &KeyPairStorage{
 				ca:         tt.fields.ca,
 				cert:       tt.fields.cert,
 				privateKey: tt.fields.privateKey,
@@ -261,7 +262,7 @@ func TestKeyPairSink_writeToCertAndCaSlot(t *testing.T) {
 		privateKey pki.StorageImplementation
 	}
 	type args struct {
-		certData *pki.CertData
+		certData *pkg.CertData
 	}
 	tests := []struct {
 		name           string
@@ -275,10 +276,10 @@ func TestKeyPairSink_writeToCertAndCaSlot(t *testing.T) {
 		{
 			name: "no newlines",
 			fields: fields{
-				privateKey: &storage.BufferPod{},
-				ca:         &storage.BufferPod{},
+				privateKey: &backend.BufferPod{},
+				ca:         &backend.BufferPod{},
 			},
-			args: args{certData: &pki.CertData{
+			args: args{certData: &pkg.CertData{
 				PrivateKey:  []byte("-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAnVHfwoKsUG1GDVyWB1AFroaKl2ImMBO8EnvGLRrmobIkQvh+\n...\nQN351pgTphi6nlCkGPzkDuwvtxSxiCWXQcaxrHAL7MiJpPzkIBq1\n-----END RSA PRIVATE KEY-----\n"),
 				Certificate: []byte("-----BEGIN CERTIFICATE-----\nMIIDzDCCAragAwIBAgIUOd0ukLcjH43TfTHFG9qE0FtlMVgwCwYJKoZIhvcNAQEL\n...\numkqeYeO30g1uYvDuWLXVA==\n-----END CERTIFICATE-----\n"),
 				CaData:      []byte("-----BEGIN CERTIFICATE-----\nMIIDUTCCAjmgAwIBAgIJAKM+z4MSfw2mMA0GCSqGSIb3DQEBCwUAMBsxGTAXBgNV\n...\nG/7g4koczXLoUM3OQXd5Aq2cs4SS1vODrYmgbioFsQ3eDHd1fg==\n-----END CERTIFICATE-----\n"),
@@ -307,7 +308,7 @@ QN351pgTphi6nlCkGPzkDuwvtxSxiCWXQcaxrHAL7MiJpPzkIBq1
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &KeyPairSink{
+			f := &KeyPairStorage{
 				ca:         tt.fields.ca,
 				cert:       tt.fields.cert,
 				privateKey: tt.fields.privateKey,
