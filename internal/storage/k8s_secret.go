@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +59,7 @@ func (fs *K8sSecretStorage) Read() ([]byte, error) {
 	secret, err := fs.client.CoreV1().Secrets(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, pki.ErrNoCertFound
+			return nil, pkg.ErrNoCertFound
 		}
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (fs *K8sSecretStorage) CanRead() error {
 	_, err := fs.client.CoreV1().Secrets(fs.Namespace).Get(context.TODO(), fs.Name, meta.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return pki.ErrNoCertFound
+			return pkg.ErrNoCertFound
 		}
 		return err
 	}

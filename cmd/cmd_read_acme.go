@@ -3,10 +3,12 @@ package main
 import (
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
+	"github.com/soerenschneider/vault-pki-cli/pkg"
 	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
@@ -71,7 +73,7 @@ func readAcmeCert(config *conf.Config) error {
 	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "can't build auth")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = authStrategy.Login(ctx, vaultClient)
 	DieOnErr(err, "can't login to vault")
@@ -91,14 +93,28 @@ func readAcmeCert(config *conf.Config) error {
 	sink, err := storage.MultiKeyPairStorageFromConfig(config)
 	DieOnErr(err, "can't build sink")
 
-	changed, err := pkiImpl.ReadAcme(ctx, sink, config.CommonName)
-	DieOnErr(err, "can't read acme cert")
+	result, err := pkiImpl.ReadAcme(ctx, sink, config.CommonName)
+	if err != nil {
+		labels := prometheus.Labels{
+			"cn":  "config.CommonName",
+			"err": internal.TranslateErrToPromLabel(err),
+		}
+		internal.MetricCertErrors.With(labels).Inc()
+		DieOnErr(err, "can't read acme cert")
+	}
 
-	if !changed {
-		log.Info().Msg("No update detected, local certificate and remote cert identical")
+	switch result.Status {
+	case pkg.Issued:
+		internal.UpdateCertificateMetrics(result.IssuedCert)
+		log.Info().Msg("Detected update between local cert on disk and the read certificate")
+		commandCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		return runPostIssueHooks(commandCtx, config)
+	case pkg.Noop:
+		log.Info().Msg("No update detected for certificate")
+		internal.UpdateCertificateMetrics(result.ExistingCert)
 		return nil
 	}
 
-	log.Info().Msg("Detected update between local cert on disk and the read certificate")
-	return runPostIssueHooks(config)
+	return nil
 }

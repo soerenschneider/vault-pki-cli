@@ -6,24 +6,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/cenkalti/backoff/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
-	"github.com/soerenschneider/vault-pki-cli/pkg/issue_strategies"
+	"github.com/soerenschneider/vault-pki-cli/pkg/renew_strategy"
 	"golang.org/x/net/context"
 )
-
-type IssueOutcome int
-
-const (
-	Issued    = 0
-	NotNeeded = 1
-	Error     = 2
-)
-
-var ErrNoCertFound = errors.New("data not found")
 
 // StorageImplementation is a simple wrapper around a key artifact (cert, key, ca, crl, csr). This enables decoupling
 // from the actual resource (file-based, kubernetes, network, ..) and make it interchangeable.
@@ -60,18 +49,22 @@ type PkiClient interface {
 	FetchCrl(binary bool) ([]byte, error)
 }
 
-type PkiService struct {
-	pkiImpl  PkiClient
-	strategy issue_strategies.IssueStrategy
+type RenewStrategy interface {
+	Renew(cert *x509.Certificate) (bool, error)
 }
 
-func NewPkiService(pki PkiClient, strategy issue_strategies.IssueStrategy) (*PkiService, error) {
+type PkiService struct {
+	pkiImpl  PkiClient
+	strategy RenewStrategy
+}
+
+func NewPkiService(pki PkiClient, strategy RenewStrategy) (*PkiService, error) {
 	if pki == nil {
 		return nil, errors.New("empty pki impl provided")
 	}
 
 	if strategy == nil {
-		strategy = &issue_strategies.StaticRenewal{Decision: true}
+		strategy = &renew_strategy.StaticRenewal{Decision: true}
 	}
 
 	return &PkiService{
@@ -85,17 +78,15 @@ func (p *PkiService) Revoke(ctx context.Context, serial string) error {
 		return errors.New("can't revoke, empty cert serial provided")
 	}
 
-	log.Info().Msgf("Attempting to revoke certificate %s", serial)
 	op := func() error {
 		return p.pkiImpl.Revoke(ctx, serial)
 	}
 
 	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
-		return fmt.Errorf("could not revoke certificate: %w", err)
+		return fmt.Errorf("%w: %v", pkg.ErrRevokeCert, err)
 	}
 
-	log.Info().Msgf("Revoking certificate successful")
 	return nil
 }
 
@@ -106,22 +97,23 @@ func (p *PkiService) Tidy(ctx context.Context) error {
 
 	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
-		return fmt.Errorf("could not tidy certificate storage: %w", err)
+		return fmt.Errorf("%w: %v", pkg.ErrTidyCert, err)
 	}
 
-	log.Info().Msgf("Tidy blob storage scheduled")
 	return nil
 }
 
-func (p *PkiService) ReadAcme(ctx context.Context, format IssueStorage, commonName string) (bool, error) {
-	var changed bool
-	certData, err := format.ReadCert()
-	if err != nil || certData == nil {
-		log.Info().Msg("No existing local certdata available")
-		changed = true
+func (p *PkiService) ReadAcme(ctx context.Context, format IssueStorage, commonName string) (pkg.IssueResult, error) {
+	ret := pkg.IssueResult{
+		Status: pkg.Unknown,
 	}
 
-	log.Info().Msgf("Trying to read certificate for domain '%s'", commonName)
+	var err error
+	ret.ExistingCert, err = format.ReadCert()
+	if err == nil && ret.ExistingCert == nil {
+		ret.Status = pkg.Noop
+	}
+
 	var cert *pkg.CertData
 	op := func() error {
 		var err error
@@ -131,40 +123,30 @@ func (p *PkiService) ReadAcme(ctx context.Context, format IssueStorage, commonNa
 
 	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
-		return changed, fmt.Errorf("error reading certificate %w", err)
+		return ret, fmt.Errorf("%w: %v", pkg.ErrIssueCert, err)
 	}
 
-	log.Info().Msg("Certificate successfully read from Vault kv2")
-	// Update metrics for the just received cert
-	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
+	ret.IssuedCert, err = pkg.ParseCertPem(cert.Certificate)
 	if err != nil {
-		log.Error().Msgf("Could not parse certificate data: %v", err)
-	} else {
-		log.Info().Msgf("Read certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
+		return ret, fmt.Errorf("received cert data invalid: %w: %v", pkg.ErrCertInvalidData, err)
 	}
 
-	if !changed {
-		changed = !bytes.Equal(certData.Raw, x509Cert.Raw)
+	if ret.ExistingCert != nil {
+		if !bytes.Equal(ret.ExistingCert.Raw, ret.IssuedCert.Raw) {
+			ret.Status = pkg.Issued
+		}
 	}
 
-	err = format.WriteCert(cert)
-	if err != nil {
-		return changed, fmt.Errorf("could not write bundle to backend: %v", err)
+	if err := format.WriteCert(cert); err != nil {
+		return ret, fmt.Errorf("%w: %v", pkg.ErrWriteCert, err)
 	}
 
-	return changed, nil
+	return ret, nil
 }
 
-func (p *PkiService) shouldIssue(format IssueStorage) (bool, error) {
-	cert, err := format.ReadCert()
-	if err != nil || cert == nil {
-		if errors.Is(err, ErrNoCertFound) {
-			log.Info().Msg("No existing certificate found")
-			return true, nil
-		} else {
-			log.Warn().Msgf("Could not read certificate: %v", err)
-			return true, err
-		}
+func (p *PkiService) shouldIssue(cert *x509.Certificate) (bool, error) {
+	if cert == nil {
+		return true, errors.New("nil pointer supplied")
 	}
 
 	if !pkg.IsCertExpired(*cert) {
@@ -173,46 +155,48 @@ func (p *PkiService) shouldIssue(format IssueStorage) (bool, error) {
 		}
 	}
 
-	log.Info().Msgf("Certificate %s successfully parsed", pkg.FormatSerial(cert.SerialNumber))
 	return p.strategy.Renew(cert)
 }
 
-func (p *PkiService) Issue(ctx context.Context, format IssueStorage, args pkg.IssueArgs) (IssueOutcome, error) {
-	shouldIssue, err := p.shouldIssue(format)
-	if err == nil && !shouldIssue {
-		log.Info().Msg("Cert exists and does not need a renewal")
-		return NotNeeded, nil
-	} else {
-		log.Info().Err(err).Msg("Going to renew certificate")
+func (p *PkiService) Issue(ctx context.Context, format IssueStorage, args pkg.IssueArgs) (pkg.IssueResult, error) {
+	ret := pkg.IssueResult{
+		Status: pkg.Unknown,
 	}
 
-	var cert *pkg.CertData
+	var err error
+	ret.ExistingCert, err = format.ReadCert()
+	if (err != nil || ret.ExistingCert == nil) && !errors.Is(err, pkg.ErrNoCertFound) {
+		log.Warn().Err(err).Msg("Could not read certificate")
+	}
+
+	issueNewCert, err := p.shouldIssue(ret.ExistingCert)
+	if ret.ExistingCert != nil && err == nil && !issueNewCert {
+		ret.Status = pkg.Noop
+		return ret, nil
+	}
+
+	var issuedCertData *pkg.CertData
 	op := func() error {
 		var err error
-		cert, err = p.pkiImpl.Issue(ctx, args)
+		issuedCertData, err = p.pkiImpl.Issue(ctx, args)
 		return err
 	}
 	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
-	log.Info().Msg("Issuing new certificate")
 	if err := backoff.Retry(op, backoffImpl); err != nil {
-		return Error, fmt.Errorf("error issuing certificate %v", err)
+		return ret, fmt.Errorf("%w: %v", pkg.ErrIssueCert, err)
 	}
-	log.Info().Msg("New certificate successfully issued")
 
-	// Update metrics for the just received blob
-	x509Cert, err := pkg.ParseCertPem(cert.Certificate)
+	ret.IssuedCert, err = pkg.ParseCertPem(issuedCertData.Certificate)
 	if err != nil {
-		log.Error().Msgf("Could not parse certificate data: %v", err)
-	} else {
-		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
+		return ret, fmt.Errorf("received cert data invalid: %w: %v", pkg.ErrCertInvalidData, err)
 	}
 
-	err = format.WriteCert(cert)
-	if err != nil {
-		return Error, fmt.Errorf("could not write bundle to backend: %v", err)
+	if err := format.WriteCert(issuedCertData); err != nil {
+		return ret, fmt.Errorf("%w: %v", pkg.ErrWriteCert, err)
 	}
 
-	return Issued, nil
+	ret.Status = pkg.Issued
+	return ret, nil
 }
 
 func (p *PkiService) Verify(cert *x509.Certificate) error {
@@ -234,7 +218,6 @@ func (p *PkiService) Verify(cert *x509.Certificate) error {
 		return err
 	}
 
-	log.Info().Msgf("Received CA with serial %s", pkg.FormatSerial(ca.SerialNumber))
 	return verifyCertAgainstCa(cert, ca)
 }
 
@@ -259,30 +242,27 @@ func (p *PkiService) Sign(ctx context.Context, sink CsrStorage, args pkg.Signatu
 		return err
 	}
 
-	log.Info().Msg("Trying to sign certificate")
 	var resp *pkg.Signature
 	op := func() error {
 		var err error
 		resp, err = p.pkiImpl.Sign(ctx, string(csr), args)
 		return err
 	}
+
 	backoffImpl := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
 	if err := backoff.Retry(op, backoffImpl); err != nil {
-		return fmt.Errorf("error signing CSR: %v", err)
+		return fmt.Errorf("%w: %v", pkg.ErrSignCert, err)
 	}
-	log.Info().Msgf("CSR has been successfully signed using serial %s", resp.Serial)
 
-	// Update metrics for the just received blob
-	x509Cert, err := pkg.ParseCertPem(resp.Certificate)
+	_, err = pkg.ParseCertPem(resp.Certificate)
 	if err != nil {
-		log.Error().Msgf("Could not parse certificate data: %v", err)
-	} else {
-		log.Info().Msgf("New certificate valid until %v (%s)", x509Cert.NotAfter, time.Until(x509Cert.NotAfter).Round(time.Second))
+		return fmt.Errorf("received cert data invalid: %w: %v", pkg.ErrCertInvalidData, err)
 	}
 
 	err = sink.WriteSignature(resp)
 	if err != nil {
-		return fmt.Errorf("could not write certificate file to backend: %v", err)
+		return fmt.Errorf("%w: %v", pkg.ErrWriteCert, err)
 	}
+
 	return nil
 }
