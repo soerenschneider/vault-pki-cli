@@ -1,14 +1,16 @@
 package main
 
 import (
+	"time"
+
 	"github.com/rs/zerolog/log"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 func getRevokeCmd() *cobra.Command {
@@ -39,13 +41,24 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	authStrategy, err := buildAuthImpl(config)
 	DieOnErr(err, "could not build auth strategy")
 
-	vaultBackend, err := vault.NewVaultPki(vaultClient, authStrategy, config)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err = authStrategy.Login(ctx, vaultClient)
+	DieOnErr(err, "can't login to vault")
+
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	vaultBackend, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "could not build rotation client")
 
-	pkiImpl, err := pki.NewPki(vaultBackend, nil, config)
+	pkiImpl, err := pki.NewPkiService(vaultBackend, nil)
 	DieOnErr(err, "could not build pki impl")
 
-	sink, err := sink.MultiKeyPairSinkFromConfig(config)
+	sink, err := storage.MultiKeyPairStorageFromConfig(config)
 	DieOnErr(err, "could not build keypair")
 
 	cert, err := sink.ReadCert()
@@ -57,6 +70,6 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 	}
 
 	serial := pkg.FormatSerial(cert.SerialNumber)
-	err = pkiImpl.Revoke(serial)
+	err = pkiImpl.Revoke(ctx, serial)
 	DieOnErr(err, "could not revoke cert")
 }

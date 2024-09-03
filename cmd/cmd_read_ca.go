@@ -3,9 +3,8 @@ package main
 import (
 	"github.com/cenkalti/backoff/v3"
 	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki/sink"
 	"github.com/soerenschneider/vault-pki-cli/internal/storage"
-	"github.com/soerenschneider/vault-pki-cli/internal/vault"
+	"github.com/soerenschneider/vault-pki-cli/pkg/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +31,13 @@ func readCaEntryPoint(_ *cobra.Command, _ []string) {
 	vaultClient, err := buildVaultClient(config)
 	DieOnErr(err, "could not build vault client")
 
-	pkiImpl, err := vault.NewVaultPki(vaultClient, &vault.NoAuth{}, config)
+	opts := []vault.VaultOpts{
+		vault.WithPkiMount(config.VaultMountPki),
+		vault.WithKv2Mount(config.VaultMountKv2),
+		vault.WithAcmePrefix(config.AcmePrefix),
+	}
+
+	pkiImpl, err := vault.NewVaultPki(vaultClient.Logical(), config.VaultPkiRole, opts...)
 	DieOnErr(err, "could not build rotation client")
 
 	storage.InitBuilder(config)
@@ -48,7 +53,7 @@ func readCaEntryPoint(_ *cobra.Command, _ []string) {
 	err = backoff.Retry(op, backoffImpl)
 	DieOnErr(err, "Could not read cert data from vault")
 
-	sink, err := sink.CaSinkFromConfig(config.StorageConfig)
+	sink, err := storage.CaStorageFromConfig(config.StorageConfig)
 	DieOnErr(err, "could not build ca sink from config")
 
 	err = sink.WriteCa(certData)

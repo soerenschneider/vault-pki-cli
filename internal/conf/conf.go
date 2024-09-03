@@ -48,7 +48,7 @@ type Config struct {
 	StorageConfig       []map[string]string `mapstructure:"storage"`
 
 	PostHooks                              []string `mapstructure:"post-hooks"`
-	CertificateLifetimeThresholdPercentage float64  `mapstructure:"lifetime-threshold-percent"`
+	CertificateLifetimeThresholdPercentage float32  `mapstructure:"lifetime-threshold-percent"`
 
 	DerEncoded bool
 }
@@ -80,7 +80,7 @@ func (c *Config) Validate() error {
 	once.Do(func() {
 		validate = validator.New()
 
-		if err := validate.RegisterValidation("ttl", validateBrokers); err != nil {
+		if err := validate.RegisterValidation("ttl", validateTtl); err != nil {
 			log.Fatal().Err(err).Msg("could not build custom validation 'ttl'")
 		}
 	})
@@ -102,7 +102,7 @@ func (c *Config) ValidateIssue() error {
 	return err
 }
 
-func validateBrokers(fl validator.FieldLevel) bool {
+func validateTtl(fl validator.FieldLevel) bool {
 	// Get the field value and check if it's a slice
 	field := fl.Field()
 	if field.Kind() != reflect.String {

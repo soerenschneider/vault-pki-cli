@@ -1,54 +1,31 @@
-package sink
+package shape
 
 import (
 	"bytes"
 	"crypto/x509"
-	"fmt"
 	"regexp"
 
 	"github.com/pkg/errors"
-	"github.com/soerenschneider/vault-pki-cli/internal/conf"
-	"github.com/soerenschneider/vault-pki-cli/internal/pki"
-	"github.com/soerenschneider/vault-pki-cli/internal/storage"
 	"github.com/soerenschneider/vault-pki-cli/pkg"
+	"github.com/soerenschneider/vault-pki-cli/pkg/pki"
 )
 
-// KeyPairSink offers an interface to read/write keypair data (certificate and private key) and optional ca data.
-type KeyPairSink struct {
+// KeyPairStorage offers an interface to read/write keypair data (certificate and private key) and optional ca data.
+type KeyPairStorage struct {
 	ca         pki.StorageImplementation
 	cert       pki.StorageImplementation
 	privateKey pki.StorageImplementation
 }
 
-const (
-	certId = "cert"
-	keyId  = "key"
-	caId   = "ca"
-)
-
-func KeyPairSinkFromConfig(config *conf.Config) ([]*KeyPairSink, error) {
-	var sinks []*KeyPairSink
-
-	for _, conf := range config.StorageConfig {
-		sink, err := buildSink(conf)
-		if err != nil {
-			return nil, err
-		}
-		sinks = append(sinks, sink)
-	}
-
-	return sinks, nil
-}
-
-func NewKeyPairSink(cert, privateKey, chain pki.StorageImplementation) (*KeyPairSink, error) {
+func NewKeyPairStorage(cert, privateKey, chain pki.StorageImplementation) (*KeyPairStorage, error) {
 	if nil == privateKey {
 		return nil, errors.New("empty private key storage provided")
 	}
 
-	return &KeyPairSink{cert: cert, privateKey: privateKey, ca: chain}, nil
+	return &KeyPairStorage{cert: cert, privateKey: privateKey, ca: chain}, nil
 }
 
-func (f *KeyPairSink) ReadCert() (*x509.Certificate, error) {
+func (f *KeyPairStorage) ReadCert() (*x509.Certificate, error) {
 	var source pki.StorageImplementation
 	if f.cert != nil {
 		source = f.cert
@@ -64,7 +41,7 @@ func (f *KeyPairSink) ReadCert() (*x509.Certificate, error) {
 	return pkg.ParseCertPem(data)
 }
 
-func (f *KeyPairSink) WriteCert(certData *pki.CertData) error {
+func (f *KeyPairStorage) WriteCert(certData *pkg.CertData) error {
 	if nil == certData {
 		return errors.New("got nil as certData")
 	}
@@ -87,7 +64,7 @@ func endsWithNewline(data []byte) bool {
 	return bytes.HasSuffix(data, []byte("\n"))
 }
 
-func (f *KeyPairSink) writeToPrivateSlot(certData *pki.CertData) error {
+func (f *KeyPairStorage) writeToPrivateSlot(certData *pkg.CertData) error {
 	var data = certData.Certificate
 	if !endsWithNewline(data) {
 		data = append(data, "\n"...)
@@ -104,7 +81,7 @@ func (f *KeyPairSink) writeToPrivateSlot(certData *pki.CertData) error {
 	return f.privateKey.Write(data)
 }
 
-func (f *KeyPairSink) writeToCertAndCaSlot(certData *pki.CertData) error {
+func (f *KeyPairStorage) writeToCertAndCaSlot(certData *pkg.CertData) error {
 	var data = certData.Certificate
 	if !endsWithNewline(data) {
 		data = append(data, "\n"...)
@@ -137,7 +114,7 @@ func fixLineBreaks(input []byte) (ret []byte) {
 	return
 }
 
-func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
+func (f *KeyPairStorage) writeToIndividualSlots(certData *pkg.CertData) error {
 	var certRaw = certData.Certificate
 	if certData.HasCaData() && f.ca == nil {
 		if !endsWithNewline(certRaw) {
@@ -162,54 +139,4 @@ func (f *KeyPairSink) writeToIndividualSlots(certData *pki.CertData) error {
 	}
 
 	return nil
-}
-
-func buildSink(conf map[string]string) (*KeyPairSink, error) {
-	builder, err := storage.GetBuilder()
-	if err != nil {
-		return nil, err
-	}
-
-	var certVal string
-	var keyVal string
-	var caVal string
-
-	val, ok := conf[certId]
-	if ok {
-		certVal = val
-	}
-
-	val, ok = conf[keyId]
-	if !ok {
-		return nil, fmt.Errorf("can not build storage, missing '%s' in storage configuration", keyId)
-	}
-	keyVal = val
-
-	val, ok = conf[caId]
-	if ok {
-		caVal = val
-	}
-
-	var certSink pki.StorageImplementation
-	if len(certVal) > 0 {
-		certSink, err = builder.BuildFromUri(certVal)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	keySink, err := builder.BuildFromUri(keyVal)
-	if err != nil {
-		return nil, err
-	}
-
-	var caSink pki.StorageImplementation
-	if len(caVal) > 0 {
-		caSink, err = builder.BuildFromUri(caVal)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return NewKeyPairSink(certSink, keySink, caSink)
 }
