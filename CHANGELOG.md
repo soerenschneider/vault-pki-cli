@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.15.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.14.0...v1.15.1) (2024-09-09)
+
+
+### Features
+
+* add custom validation for ttl ([5c45898](https://github.com/soerenschneider/vault-pki-cli/commit/5c45898c6877ac16c006ab71d68e61f8a9a57f7c))
+* make max amount of retries configurable ([e5244b7](https://github.com/soerenschneider/vault-pki-cli/commit/e5244b7e96fa35c18d8f2a54a547e2b6dad6c4ba))
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/cenkalti/backoff/v3 from 3.0.0 to 3.2.2 ([7fd44f0](https://github.com/soerenschneider/vault-pki-cli/commit/7fd44f08a1a257696e0ceb0bd8774252fcde0101))
+* **deps:** bump github.com/hashicorp/go-retryablehttp ([ff45dea](https://github.com/soerenschneider/vault-pki-cli/commit/ff45dea046bf830137a857e58996ef74e92dcd0e))
+* **deps:** bump github.com/spf13/cobra from 1.8.0 to 1.8.1 ([d08bd03](https://github.com/soerenschneider/vault-pki-cli/commit/d08bd03299e392accee53d5cfd7a262d83dcd772))
+* **deps:** bump golang from 1.22.3 to 1.23.0 ([2ab7cfd](https://github.com/soerenschneider/vault-pki-cli/commit/2ab7cfdefcef9accd58d6ac37c72238c788d61c7))
+* **deps:** bump golang.org/x/net from 0.25.0 to 0.28.0 ([2e21493](https://github.com/soerenschneider/vault-pki-cli/commit/2e21493ae6b8472a41488c89025f85025622b422))
+* **deps:** bump golang.org/x/sys from 0.20.0 to 0.24.0 ([402e80c](https://github.com/soerenschneider/vault-pki-cli/commit/402e80c5ba6df19a4744bf677703700d7de864cd))
+* don't validate ttl if not specified ([2a3a4c3](https://github.com/soerenschneider/vault-pki-cli/commit/2a3a4c300d71de752e93eea168f2cca82161e3cb))
+* fix metric labels ([47c5bf8](https://github.com/soerenschneider/vault-pki-cli/commit/47c5bf8fd47b32a8ded31a0ae0332a0751154c1c))
+* fix vault auth ([ce95f55](https://github.com/soerenschneider/vault-pki-cli/commit/ce95f555de67dcef0adf47dd14757aecec6e6102))
+
+
+### Miscellaneous Chores
+
+* release 1.15.1 ([f7c6e63](https://github.com/soerenschneider/vault-pki-cli/commit/f7c6e636412015027b7536fd03497b5402a77595))
+
 ## [1.15.0](https://github.com/soerenschneider/vault-pki-cli/compare/v1.14.0...v1.15.0) (2024-09-03)
 
 
