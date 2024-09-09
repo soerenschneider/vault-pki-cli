@@ -20,6 +20,9 @@ import (
 
 const (
 	metricsNamespace = "vault_pki_cli"
+
+	MetricCertErrorsLabelCn    = "cn"
+	MetricCertErrorsLabelError = "error"
 )
 
 var (
@@ -45,7 +48,7 @@ var (
 		Namespace: metricsNamespace,
 		Name:      "cert_errors_total",
 		Help:      "The total number of errors while handling a cert",
-	}, []string{"cn", "error"})
+	}, []string{MetricCertErrorsLabelCn, MetricCertErrorsLabelError})
 
 	MetricCertLifetimePercent = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: metricsNamespace,

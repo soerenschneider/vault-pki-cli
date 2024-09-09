@@ -96,8 +96,8 @@ func readAcmeCert(config *conf.Config) error {
 	result, err := pkiImpl.ReadAcme(ctx, sink, config.CommonName)
 	if err != nil {
 		labels := prometheus.Labels{
-			"cn":  "config.CommonName",
-			"err": internal.TranslateErrToPromLabel(err),
+			internal.MetricCertErrorsLabelCn:    config.CommonName,
+			internal.MetricCertErrorsLabelError: internal.TranslateErrToPromLabel(err),
 		}
 		internal.MetricCertErrors.With(labels).Inc()
 		DieOnErr(err, "can't read acme cert")

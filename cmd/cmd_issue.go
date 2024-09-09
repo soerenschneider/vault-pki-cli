@@ -143,8 +143,8 @@ func issueCert(ctx context.Context, config *conf.Config, pkiImpl *pki.PkiService
 	result, err := pkiImpl.Issue(ctx, sink, args)
 	if err != nil {
 		labels := prometheus.Labels{
-			"cn":    "config.CommonName",
-			"error": internal.TranslateErrToPromLabel(err),
+			internal.MetricCertErrorsLabelCn:    config.CommonName,
+			internal.MetricCertErrorsLabelError: internal.TranslateErrToPromLabel(err),
 		}
 		internal.MetricCertErrors.With(labels).Inc()
 		return err
