@@ -43,7 +43,8 @@ func revokeCertEntryPoint(_ *cobra.Command, _ []string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err = authStrategy.Login(ctx, vaultClient)
+
+	_, err = vaultClient.Auth().Login(ctx, authStrategy)
 	DieOnErr(err, "can't login to vault")
 
 	opts := []vault.VaultOpts{
