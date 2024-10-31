@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.2](https://github.com/soerenschneider/vault-pki-cli/compare/v1.15.1...v1.15.2) (2024-10-31)
+
+
+### Bug Fixes
+
+* **deps:** bump golang from 1.23.0 to 1.23.2 ([2938ad1](https://github.com/soerenschneider/vault-pki-cli/commit/2938ad10888d3d492697df7a45b4bbf3209908b2))
+
 ## [1.15.1](https://github.com/soerenschneider/vault-pki-cli/compare/v1.14.0...v1.15.1) (2024-09-09)
 
 
